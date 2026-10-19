@@ -1,0 +1,14 @@
+<library path="fleet_rviz_tools">
+  <class name="fleet_rviz_tools/PoseNuc1" type="fleet_rviz_tools::PoseNuc1" base_class_type="rviz_common::Tool">
+    <description>2D Pose Estimate for nuc1 (/nuc1/initialpose)</description>
+  </class>
+  <class name="fleet_rviz_tools/PoseNuc4" type="fleet_rviz_tools::PoseNuc4" base_class_type="rviz_common::Tool">
+    <description>2D Pose Estimate for nuc4 (/nuc4/initialpose)</description>
+  </class>
+  <class name="fleet_rviz_tools/PoseNuc5" type="fleet_rviz_tools::PoseNuc5" base_class_type="rviz_common::Tool">
+    <description>2D Pose Estimate for nuc5 (/nuc5/initialpose)</description>
+  </class>
+  <class name="fleet_rviz_tools/AutodrivePanel" type="fleet_rviz_tools::AutodrivePanel" base_class_type="rviz_common::Panel">
+    <description>Per-car autodrive ON/OFF toggles and ALL AUTO / ALL OFF (sends RB / LB on /&lt;car&gt;/joy).</description>
+  </class>
+</library>

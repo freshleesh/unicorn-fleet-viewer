@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>fleet_viewer</name>
+  <version>0.1.0</version>
+  <description>Main-PC side of the UNICORN expo fleet: RViz fleet view, track maps, game pads, battery watch.</description>
+  <maintainer email="freshleesh@gmail.com">freshleesh</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>fleet_rviz_tools</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>rviz_default_plugins</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
+  <exec_depend>joy</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>rmw_cyclonedds_cpp</exec_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>
