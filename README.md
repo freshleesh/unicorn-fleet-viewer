@@ -2,8 +2,9 @@
 
 Main-PC side of the UNICORN Racing expo fleet: three 1/10 cars on one track, one driving
 itself and two driven by visitors with game pads. This repository is everything the
-**viewing / control PC** runs. The cars are managed separately; this only needs them to
-be on the same Wi-Fi and running their fleet relay (see [Topics](#topics-shared-with-the-cars)).
+**viewing / control PC** runs, plus the fleet scripts the cars run on top of their racing
+stack ([`car/`](#car-side-car): relay, agent ring planner, start scripts). The PC only needs
+the cars on the same Wi-Fi and running their fleet relay (see [Topics](#topics-shared-with-the-cars)).
 
 - RViz fleet view: 2D track map, 3D point-cloud map, each car's body, pose, planned path,
   live scan and camera
@@ -83,6 +84,54 @@ Checks each car's VESC input voltage every 5 minutes (4S LiPo) and prints only w
 is below 15.0 V (swap soon) or 14.6 V (swap now). Full log: `~/.ros/fleet_battery.log`.
 `CARS="nuc1 nuc5"` picks the cars.
 
+## Car side (`car/`)
+
+Scripts the cars run on top of the UNICORN racing stack. They are not a ROS package
+(`COLCON_IGNORE`); copy the folder to each car as `~/expo_config` (the cars have no internet):
+
+```bash
+scp -r car/. nuc1:expo_config/        # same for nuc4, nuc5
+```
+
+The car needs the racing stack built at `~/unicorn_ws` (`stack_master`, `kiss_icp_localization`,
+`controller.geofence`; override the setup script with `UNICORN_SETUP=`), the track map at
+`~/maps/<map>/<map>.{pcd,yaml,pgm}` and `scipy` + `scikit-image` for the planner.
+Apply the speed-cap patch to the stack once (lets the panel slider cap the pad):
+
+```bash
+cd ~/unicorn_ws/src/unicorn-racing-stack && patch -p1 < ~/expo_config/patches/simple_mux_max_speed.patch
+cd ~/unicorn_ws && colcon build --packages-select stack_master
+```
+
+`fleet_env.sh` picks the car from the hostname (`nuc1` / `nuc4` / `nuc5`, override `FLEET_CAR=`):
+private domain 11 / 14 / 15 on localhost only, shared domain 1 on Wi-Fi.
+
+**Start** — one terminal (or tmux pane) each, on the car, in this order:
+
+```bash
+~/expo_config/start_low_level.sh geofence_map:=run_1016_1436   # VESC, lidar, camera, mux
+~/expo_config/start_kiss.sh run_1016_1436                      # localization; then "Pose: <car>" in RViz
+~/expo_config/start_relay.sh                                   # appears on the PC as /<car>/...
+~/expo_config/start_planner.sh run_1016_1436                   # agent driver (autonomous / guest practice)
+```
+
+Without the planner the car is pad-only. With it, **AUTO** in the Autodrive panel (or RB on the pad)
+hands the car to the planner; OFF or LB takes it back. Planner tuning goes as ROS args,
+e.g. `start_planner.sh run_1016_1436 -p follow_gap:=0.6`.
+
+The planner drives round the ring for ever: every 0.2 s an A* search from the car to the
+centreline point a third of a lap ahead, one-way (never against the track direction), cost =
+walls + other cars' footprints + distance from the previous path; pure pursuit follows it at
+the panel's speed cap and slows down only if the road is fully blocked by a car.
+
+**Fix-ups**
+
+| | |
+|---|---|
+| `start_camera.sh` | restart only the OAK-D (e.g. `X_LINK_ERROR`); log `~/.ros/oak.log` |
+| `restart_mux.sh` | restart only the mux with its current params, e.g. after editing the geofence map |
+| `stop_all.sh` | stop everything above |
+
 ## Topics shared with the cars
 
 All on domain 1. Each car runs its own stack on a private domain and a relay copies these across.
@@ -108,3 +157,4 @@ Cars: `nuc1` (orange), `nuc4` (blue), `nuc5` (green). The names and colours live
 
 - `fleet_rviz_tools` — RViz plugins: `PoseNuc1/4/5` tools, `AutodrivePanel`
 - `fleet_viewer` — launch files, RViz config, bundled map, `pcd_publisher.py`, env script, battery tools
+- `car/` — not a package: scripts the cars run (env, relay, ring planner, start/stop), mux patch

@@ -1,0 +1,43 @@
+--- a/stack_master/scripts/simple_mux_node.py
++++ b/stack_master/scripts/simple_mux_node.py
+@@ -4,7 +4,8 @@
+ from rclpy.node import Node
+ from sensor_msgs.msg import Joy, LaserScan
+ from nav_msgs.msg import Odometry
+-from std_msgs.msg import Bool
++from std_msgs.msg import Bool, Float32
++from rclpy.qos import QoSProfile, DurabilityPolicy
+ from ackermann_msgs.msg import AckermannDriveStamped
+ from copy import deepcopy
+ 
+@@ -35,6 +36,8 @@
+         self.declare_parameter('use_estop',  False)
+         # 2D track grid (map_server yaml, or a map name under ~/maps); empty = geofence off
+         self.declare_parameter('geofence_map_yaml', '')
++        # runtime cap for the human-drive speed (full stick = cap); '' = keep joy_max_speed
++        self.declare_parameter('max_speed_topic', '/fleet/max_speed')
+         self.declare_parameter('sim',  False)
+         # initial human-drive source; the pitwall panel can flip it at runtime
+         # via ego_control_topic. False = joy, True = keyboard (/joy_keyboard).
+@@ -82,6 +85,10 @@
+             self.create_subscription(LaserScan, scan_topic, self._scan_cb, 10)
+             self.create_subscription(Odometry,  odom_topic, self._odom_cb, 10)
+ 
++        if p('max_speed_topic'):
++            self.create_subscription(Float32, p('max_speed_topic'), self._max_speed_cb,
++                                     QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
++
+         geofence_map = p('geofence_map_yaml')
+         self.geofence = Geofence(self, geofence_map) if geofence_map else None
+ 
+@@ -89,6 +96,10 @@
+         self.create_timer(1.0 / p('rate_hz'), self._loop)
+ 
+     def _scan_cb(self, msg): self.scan = msg
++
++    def _max_speed_cb(self, msg):
++        self.max_speed = float(msg.data)
++        self.get_logger().info(f'joy max speed -> {self.max_speed:.1f} m/s')
+     def _odom_cb(self, msg): self.odom = msg
+     def _drive_cb(self, msg): self.autodrive = msg
+ 
