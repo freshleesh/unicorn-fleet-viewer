@@ -372,6 +372,57 @@ def stanley(path, x, y, yaw, v, wheelbase, kappa, k_e=1.5, k_soft=1.0, k_h=1.0):
     return math.atan(wheelbase * kappa[i]) + k_h * he + math.atan2(-k_e * e, k_soft + v), e
 
 
+def path_errors(path, kappa, x, y, yaw):
+    """Rear-axle errors to the path: (lateral error, + = left of the path; heading error car - path;
+    path curvature) at the nearest path point."""
+    i = min(max(nearest(path, x, y), 1), len(path) - 2)
+    psi = math.atan2(path[i + 1, 1] - path[i - 1, 1], path[i + 1, 0] - path[i - 1, 0])
+    e = -(x - path[i, 0]) * math.sin(psi) + (y - path[i, 1]) * math.cos(psi)
+    th = (yaw - psi + math.pi) % (2.0 * math.pi) - math.pi
+    return e, th, float(kappa[i])
+
+
+def rear_feedback(path, x, y, yaw, v, wheelbase, kappa, k_e=4.0, k_th=2.0):
+    """Rear-wheel feedback (Samson): yaw rate = path curvature term (feedforward, exact for the rear
+    axle, so no early turn-in) - k_th * heading error - k_e * lateral error, then steering from the
+    kinematic bicycle. Errors are at the rear axle (base_link), where the car is measured."""
+    e, th, k = path_errors(path, kappa, x, y, yaw)
+    v = max(v, 0.3)
+    sinc = math.sin(th) / th if abs(th) > 1e-3 else 1.0
+    w = v * k * math.cos(th) / max(0.2, 1.0 - k * e) - k_th * v * th - k_e * v * e * sinc
+    return math.atan2(wheelbase * w, v)
+
+
+class LQRSteer:
+    """LQR on the lateral error dynamics at the rear axle, with the steering servo as a first-order
+    lag (tau): x = [e, heading error, actual steering - feedforward], u = command - feedforward,
+      e' = v * th,  th' = v / L * d,  d' = (u - d) / tau      (feedforward atan(L * kappa) cancels the
+    path's own turning). Gains are solved once per speed (0.25 m/s steps) and looked up at run time;
+    the actual steering is estimated by running the same lag over our own commands."""
+
+    def __init__(self, wheelbase, tau=0.15, q_e=100.0, q_th=10.0, r=20.0, dt=0.02):
+        from scipy.linalg import solve_discrete_are
+        self.L, self.tau, self.dt = wheelbase, tau, dt
+        self.v_grid = np.arange(0.25, 6.01, 0.25)
+        self.K = []
+        for v in self.v_grid:
+            A = np.array([[0.0, v, 0.0], [0.0, 0.0, v / wheelbase], [0.0, 0.0, -1.0 / tau]])
+            B = np.array([[0.0], [0.0], [1.0 / tau]])
+            Ad, Bd = np.eye(3) + A * dt, B * dt
+            Q, R = np.diag([q_e, q_th, 0.0]), np.array([[r]])
+            P = solve_discrete_are(Ad, Bd, Q, R)
+            self.K.append(np.linalg.solve(R + Bd.T @ P @ Bd, Bd.T @ P @ Ad)[0])
+        self.K = np.array(self.K)
+        self.delta = 0.0                      # estimated actual steering angle
+
+    def steer(self, path, x, y, yaw, v, kappa, last_cmd):
+        self.delta += (last_cmd - self.delta) * min(1.0, self.dt / self.tau)
+        e, th, k = path_errors(path, kappa, x, y, yaw)
+        ff = math.atan(self.L * k)
+        K = self.K[int(np.clip(round((max(v, 0.25) - 0.25) / 0.25), 0, len(self.K) - 1))]
+        return ff - float(K @ np.array([e, th, self.delta - ff]))
+
+
 def fixed_loop(grid, spacing=0.05, step=0.1, iters=400, clear=0.35):
     """Test reference: the track centreline as a closed loop, elastic-band smoothed (as Planner.relax,
     but closed) so the car can actually drive it (the raw skeleton bends tighter than the steering
@@ -442,7 +493,13 @@ def main():
             self.a_dec = float(P('a_dec', 4.0))              # max braking into corners / behind a car [m/s^2]
             self.grip = float(P('grip', 3.6))                # tyre friction circle [m/s^2] (car 1, expo floor); 0 = off
             self.preview = float(P('speed_preview', 0.25))   # s: command the speed this far ahead (actuation lag)
-            self.controller = P('controller', 'pp')            # 'pp' (pure pursuit) or 'stanley' (feedforward + Stanley)
+            self.controller = P('controller', 'pp')            # 'pp' pure pursuit | 'stanley' | 'rear' rear-wheel feedback | 'lqr'
+            self.k_rear = (float(P('rear_k_e', 4.0)), float(P('rear_k_th', 2.0)))
+            self.lqr = None
+            if self.controller == 'lqr':
+                self.lqr = LQRSteer(self.wheelbase, float(P('lqr_tau', 0.15)), float(P('lqr_q_e', 100.0)),
+                                    float(P('lqr_q_th', 10.0)), float(P('lqr_r', 20.0)))
+                self.steer_delay = float(P('lqr_predict', 0.1))   # the servo lag is in the LQR model: predict less
             self.k_e = float(P('stanley_k', 2.5))
             self.k_h = float(P('stanley_k_heading', 1.0))
             self.fixed = bool(P('fixed_path', False))          # test: follow the centreline, no A*
@@ -563,6 +620,10 @@ def main():
                 v = max(v, self.last_speed - 2.0 * self.a_dec * dt)
                 if self.controller == 'stanley':
                     steer, _ = stanley(path, *pose, self.v_meas, self.wheelbase, kappa, self.k_e, k_h=self.k_h)
+                elif self.controller == 'rear':
+                    steer = rear_feedback(path, *pose, self.v_meas, self.wheelbase, kappa, *self.k_rear)
+                elif self.lqr is not None:
+                    steer = self.lqr.steer(path, *pose, self.v_meas, kappa, self.last_steer)
                 else:
                     lookahead = min(2.5, max(0.6, self.lookahead_gain * v + 0.3))
                     steer = pure_pursuit(path, *pose, lookahead, self.wheelbase, near)
