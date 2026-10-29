@@ -188,7 +188,9 @@ class Planner:
                     syaw = math.atan2(prev[j + 1, 1] - prev[j - 1, 1], prev[j + 1, 0] - prev[j - 1, 0])
                     tail = self.plan(sx, sy, syaw, opponents)
                     if tail is not None:
-                        return np.vstack([prev[near:j], tail])
+                        path = np.vstack([prev[near:j], tail])
+                        if np.max(np.hypot(*np.diff(path, axis=0).T)) < 0.15:   # one piece, no seam
+                            return path
         return self.plan(x, y, yaw, opponents)
 
     def blocked_ahead(self, path, opponents):
@@ -251,7 +253,9 @@ def smooth(pts, window=5, spacing=0.05):
         pad = window // 2
         xs = np.convolve(np.pad(pts[:, 0], pad, mode='edge'), k, 'valid')
         ys = np.convolve(np.pad(pts[:, 1], pad, mode='edge'), k, 'valid')
+        start = pts[0].copy()
         pts = np.stack([xs, ys], 1)
+        pts[0] = start                     # the start is where the car (or the kept path) is: never move it
     s = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(pts, axis=0).T))])
     t = np.arange(0.0, s[-1], spacing)
     return np.stack([np.interp(t, s, pts[:, 0]), np.interp(t, s, pts[:, 1])], 1)
