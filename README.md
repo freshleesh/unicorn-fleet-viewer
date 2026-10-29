@@ -162,6 +162,9 @@ the panel's speed cap and slows down only if the road is fully blocked by a car.
 | `start_camera.sh` | restart only the OAK-D (e.g. `X_LINK_ERROR`); log `~/.ros/oak.log` |
 | `restart_mux.sh` | restart only the mux with its current params, e.g. after editing the geofence map |
 | `stop_all.sh` | stop everything above |
+| `start_joy.sh [N]` | pad plugged into the car itself (`/dev/input/jsN`) instead of the PC's `joy.launch.py` |
+| `mapping/record.sh <name>` | mapping bag for [glim_mapping](https://github.com/freshleesh/glim_mapping): `~/bag/<name>`, `/livox/lidar` + `/livox/imu` |
+| `mapping/start_lidar_relay.sh` | live lidar on the PC while mapping: `/<car>/livox/lidar` (5 Hz, frame `livox_frame`) |
 
 ## Topics shared with the cars
 
