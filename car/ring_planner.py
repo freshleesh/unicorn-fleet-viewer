@@ -9,6 +9,9 @@ Pure pursuit follows the latest path at 50 Hz. A speed planner runs on every new
 cap from the autodrive panel is the top speed, each point is limited by its curvature
 (lateral acceleration a_lat), then accelerating out of corners is limited to a_acc and braking
 into them (or to a stop behind a car that blocks the whole road) to a_dec.
+Each replan keeps the start of the previous path (the next ~0.4 s of driving) and runs A* from
+its end, so near-equal alternatives cannot flip right in front of the car. Pure pursuit steers
+from the pose predicted `steer_delay` s ahead (servo/motor lag), otherwise it oscillates at speed.
 No path -> keep the last one for 0.5 s, then speed 0.
 
 Runs on the car (private domain):
@@ -172,6 +175,22 @@ class Planner:
         pts[0] = (x, y)
         return smooth(pts)
 
+    def replan(self, x, y, yaw, v, opponents=(), prev=None, keep_time=0.4, keep_min=0.5, max_off=0.3):
+        """plan() with the start of the previous path kept: the part the car drives in the next
+        `keep_time` s (at least `keep_min` m) is reused as is and A* starts at its end. Near-equal
+        alternatives (hug the inside / swing wide) then cannot flip right in front of the car."""
+        if prev is not None and len(prev) > 4:
+            near = nearest(prev, x, y)
+            if math.hypot(prev[near, 0] - x, prev[near, 1] - y) < max_off:
+                j = near + int(max(keep_min, v * keep_time) / 0.05)
+                if j < len(prev) - 2:
+                    sx, sy = prev[j]
+                    syaw = math.atan2(prev[j + 1, 1] - prev[j - 1, 1], prev[j + 1, 0] - prev[j - 1, 0])
+                    tail = self.plan(sx, sy, syaw, opponents)
+                    if tail is not None:
+                        return np.vstack([prev[near:j], tail])
+        return self.plan(x, y, yaw, opponents)
+
     def blocked_ahead(self, path, opponents):
         """Arc length along `path` to the first point inside an opponent's hard footprint (or None)."""
         if not opponents or path is None:
@@ -269,6 +288,17 @@ def speed_profile(path, cap, a_lat, a_acc, a_dec, v_floor=0.5, stop_at=None, spa
     return v
 
 
+def predict(x, y, yaw, v, steer, dt, wheelbase, steps=5):
+    """Kinematic-bicycle pose `dt` s ahead at speed v and steering `steer`: where the car will be
+    when a command sent now takes effect (pose latency + actuation lag)."""
+    h = dt / steps
+    for _ in range(steps):
+        x += v * math.cos(yaw) * h
+        y += v * math.sin(yaw) * h
+        yaw += v / wheelbase * math.tan(steer) * h
+    return x, y, yaw
+
+
 def nearest(path, x, y):
     """Index of the path point nearest to the car, searched in the first half (the path ends far ahead)."""
     d = np.hypot(path[:, 0] - x, path[:, 1] - y)
@@ -309,7 +339,8 @@ def main():
             self.speed = float(P('speed', 2.0))                 # until the panel's cap arrives on /fleet/max_speed
             self.max_steer = float(P('max_steer', 0.4))
             self.wheelbase = float(P('wheelbase', 0.33))
-            self.lookahead_gain = float(P('lookahead_gain', 0.3))   # lookahead = gain*v + 0.3, clamped 0.6..2.5 m
+            self.lookahead_gain = float(P('lookahead_gain', 0.35))  # lookahead = gain*v + 0.3, clamped 0.6..2.5 m
+            self.steer_delay = float(P('steer_delay', 0.15))     # s: pure pursuit steers from where the car will be then
             self.keep_path = float(P('keep_path', 0.5))           # s to keep the last path when a replan fails
             self.pose_timeout = float(P('pose_timeout', 0.3))
             self.opp_timeout = float(P('opp_timeout', 0.5))
@@ -372,7 +403,7 @@ def main():
                 self.path = None
                 return
             t0 = time.monotonic()
-            path = self.planner.plan(*pose, opps)
+            path = self.planner.replan(*pose, self.v_meas, opps, prev=self.path)
             dt = time.monotonic() - t0
             if path is None:
                 self.get_logger().warn('no path (car off the track?)', throttle_duration_sec=2.0)
@@ -403,6 +434,8 @@ def main():
             pose, _ = self._fresh()
             if pose is not None and self.path is not None and len(self.path) > 2:
                 path, profile = self.path, self.profile
+                # servo + motor lag: steer from the pose the car reaches by the time this command acts
+                pose = predict(*pose, self.v_meas, self.last_steer, self.steer_delay, self.wheelbase)
                 near = nearest(path, pose[0], pose[1])
                 # planned speed a little ahead (the car reacts late), never above the current panel cap
                 j = min(len(path) - 1, near + int(self.v_meas * self.preview / 0.05))
