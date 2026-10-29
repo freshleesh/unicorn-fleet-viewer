@@ -69,7 +69,7 @@ class Grid:
 
 
 class Planner:
-    def __init__(self, grid, r_hard=0.10, w_wall=3.0, k_wall=0.25, hard_cost=50.0,
+    def __init__(self, grid, r_hard=0.10, w_wall=3.0, k_wall=0.25, hard_cost=50.0, wall_range=0.5,
                  opp_half_len=0.43, opp_half_wid=0.30, opp_hard=200.0, opp_soft=5.0, k_opp=0.6,
                  w_prev=0.3, d_prev=0.3, horizon=1 / 3, back_tol=0.3, start_out=0.2,
                  relax_iters=60, relax_clear=0.35):
@@ -81,6 +81,7 @@ class Planner:
         self.dir = None                    # +1 / -1: driving along / against the centreline order
         d_in = -grid.sdf
         wall = np.where(d_in < r_hard, hard_cost, w_wall * np.exp(-(d_in - r_hard) / k_wall))
+        wall = np.where(d_in > wall_range, 0.0, wall)    # beyond wall_range a wall is no cost: free to take any line
         self.base = np.where(grid.free, wall, np.inf)
         self.prev_mask = None
 
@@ -493,7 +494,7 @@ def main():
             self.a_dec = float(P('a_dec', 4.0))              # max braking into corners / behind a car [m/s^2]
             self.grip = float(P('grip', 3.6))                # tyre friction circle [m/s^2] (car 1, expo floor); 0 = off
             self.preview = float(P('speed_preview', 0.25))   # s: command the speed this far ahead (actuation lag)
-            self.controller = P('controller', 'pp')            # 'pp' pure pursuit | 'stanley' | 'rear' rear-wheel feedback | 'lqr'
+            self.controller = P('controller', 'rear')            # 'pp' pure pursuit | 'stanley' | 'rear' rear-wheel feedback | 'lqr'
             self.k_rear = (float(P('rear_k_e', 4.0)), float(P('rear_k_th', 2.0)))
             self.lqr = None
             if self.controller == 'lqr':
