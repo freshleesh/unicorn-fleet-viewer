@@ -51,7 +51,7 @@ def test_only_configured_fresh_cars_enter_and_marker_ids_unique(timer, monkeypat
     markers=timer.marker_pub.publish.call_args.args[0].markers
     assert len({(x.ns,x.id) for x in markers})==len(markers)
     labels=[x.text for x in markers if x.type==m.Marker.TEXT_VIEW_FACING and x.action==m.Marker.ADD]
-    assert sorted(labels)==['nuc1 START / FINISH','nuc4 START / FINISH']
+    assert labels == []
 
 def test_save_clear_and_active_race_protection(timer):
     timer.set_line(2.,0.,0.,'nuc1');timer.set_line(7.,0.,0.,'nuc4')

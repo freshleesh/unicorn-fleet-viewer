@@ -378,7 +378,10 @@ class LapTimer:
 
     # marker ----------------------------------------------------------------
     def publish_marker(self):
-        markers = []
+        legacy_label = Marker()
+        legacy_label.header.frame_id = 'map'
+        legacy_label.ns, legacy_label.id, legacy_label.action = 'start_line', 2, Marker.DELETE
+        markers = [legacy_label]
         active = {c: self.lines[c] for c in CARS if c in self.lines}
         if not active and 'shared' in self.lines:
             active = {'shared': self.lines['shared']}
@@ -425,13 +428,10 @@ class LapTimer:
                         Point(x=float(x + tx * 0.75), y=float(y + ty * 0.75), z=0.03)]
         arrow.scale.x, arrow.scale.y, arrow.scale.z = 0.06, 0.15, 0.15
         arrow.color = ColorRGBA(r=color[0], g=color[1], b=color[2], a=1.0)
+        # Explicitly remove labels retained by RViz from earlier versions.
         label = Marker()
         label.header.frame_id = 'map'
-        label.ns, label.id, label.type = ns, 2, Marker.TEXT_VIEW_FACING
-        label.pose.position.x, label.pose.position.y, label.pose.position.z = float(x + nx * (hw + 0.3)), float(y + ny * (hw + 0.3)), 0.3
-        label.scale.z = 0.25
-        label.color = ColorRGBA(r=color[0], g=color[1], b=color[2], a=1.0)
-        label.text = f'{car} START / FINISH'
+        label.ns, label.id, label.action = ns, 2, Marker.DELETE
         return [chk, arrow, label]
 
 
