@@ -1,430 +1,476 @@
 Panels:
-- Class: rviz_common/Displays
-  Help Height: 70
-  Name: Displays
-  Property Tree Widget:
-    Expanded: []
+  - Class: rviz_common/Displays
+    Help Height: 70
+    Name: Displays
+    Property Tree Widget:
+      Expanded: ~
+      Splitter Ratio: 0.5
+    Tree Height: 416
+  - Class: rviz_common/Tool Properties
+    Expanded: ~
+    Name: Tool Properties
     Splitter Ratio: 0.5
-  Tree Height: 340
-- Class: rviz_common/Tool Properties
-  Expanded: null
-  Name: Tool Properties
-  Splitter Ratio: 0.5
-- Class: fleet_rviz_tools/AutodrivePanel
-  Name: Autodrive
-- Class: fleet_rviz_tools/RacePanel
-  Name: Race
-  Laps: 3
+  - Class: fleet_rviz_tools/AutodrivePanel
+    MaxSpeed_nuc1: 4
+    MaxSpeed_nuc4: 4
+    MaxSpeed_nuc5: 4.1
+    Name: Autodrive
+  - Class: fleet_rviz_tools/RacePanel
+    Laps: 3
+    Name: Race
 Visualization Manager:
-  Class: ''
+  Class: ""
   Displays:
-  - Alpha: 0.5
-    Cell Size: 1
-    Class: rviz_default_plugins/Grid
-    Color: 160; 160; 164
-    Enabled: true
-    Line Style:
-      Line Width: 0.029999999329447746
-      Value: Lines
-    Name: Grid
-    Normal Cell Count: 0
-    Offset:
-      X: 0
-      Y: 0
-      Z: 0
-    Plane: XY
-    Plane Cell Count: 40
-    Reference Frame: <Fixed Frame>
-    Value: true
-  - Alpha: 0.699999988079071
-    Binary representation: false
-    Binary threshold: 100
-    Class: rviz_default_plugins/Map
-    Color Scheme: map
-    Draw Behind: false
-    Enabled: true
-    Name: Track 2D
-    Topic:
-      Depth: 1
-      Durability Policy: Transient Local
-      Filter size: 10
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /map
-    Update Topic:
-      Depth: 5
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /map_updates
-    Use Timestamp: false
-    Value: true
-  - Alpha: 1
-    Autocompute Intensity Bounds: true
-    Class: rviz_default_plugins/PointCloud2
-    Color Transformer: AxisColor
-    Decay Time: 0
-    Enabled: true
-    Position Transformer: XYZ
-    Selectable: false
-    Size (Pixels): 1
-    Size (m): 0.01
-    Style: Points
-    Use Fixed Frame: true
-    Use rainbow: true
-    Value: true
-    Name: Map 3D
-    Color: 200; 200; 200
-    Axis: Z
-    Topic:
-      Depth: 1
-      Durability Policy: Transient Local
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /map_cloud
-    Autocompute Value Bounds:
-      Max Value: 2
-      Min Value: -0.5
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 40
+      Reference Frame: <Fixed Frame>
       Value: true
-  - Class: rviz_default_plugins/MarkerArray
-    Enabled: true
-    Name: start line
-    Namespaces: {}
-    Topic:
-      Depth: 1
-      Durability Policy: Transient Local
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /race/marker
-    Value: true
-  - Class: rviz_default_plugins/MarkerArray
-    Enabled: true
-    Name: nuc1 car
-    Namespaces: {}
-    Topic:
-      Depth: 5
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc1/marker
-    Value: true
-  - Angle Tolerance: 0.10000000149011612
-    Class: rviz_default_plugins/Odometry
-    Covariance:
-      Orientation:
-        Alpha: 0.5
-        Color: 255; 255; 127
-        Color Style: Unique
-        Frame: Local
-        Offset: 1
-        Scale: 1
+    - Alpha: 0.699999988079071
+      Binary representation: false
+      Binary threshold: 100
+      Class: rviz_default_plugins/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: true
+      Name: Track 2D
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /map
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /map_updates
+      Use Timestamp: false
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 9.996454238891602
+        Min Value: -3.1972765922546387
         Value: true
-      Position:
-        Alpha: 0.30000001192092896
-        Color: 204; 51; 204
-        Scale: 1
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 200; 200; 200
+      Color Transformer: AxisColor
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: Map 3D
+      Position Transformer: XYZ
+      Selectable: false
+      Size (Pixels): 1
+      Size (m): 0.009999999776482582
+      Style: Points
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /map_cloud
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: start line
+      Namespaces:
+        start_line: true
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /race/marker
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: nuc1 car
+      Namespaces:
+        nuc1: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc1/marker
+      Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz_default_plugins/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: false
+      Enabled: true
+      Keep: 1
+      Name: nuc1 pose
+      Position Tolerance: 0.10000000149011612
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 100; 25
+        Head Length: 0.20000000298023224
+        Head Radius: 0.10000000149011612
+        Shaft Length: 0.5
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc1/odom
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
         Value: true
-      Value: false
-    Enabled: true
-    Keep: 1
-    Name: nuc1 pose
-    Position Tolerance: 0.10000000149011612
-    Shape:
-      Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
       Color: 255; 100; 25
-      Head Length: 0.20000000298023224
-      Head Radius: 0.10000000149011612
-      Shaft Length: 0.5
-      Shaft Radius: 0.05000000074505806
-      Value: Arrow
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      Filter size: 10
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc1/odom
-    Value: true
-  - Alpha: 1
-    Autocompute Intensity Bounds: true
-    Class: rviz_default_plugins/PointCloud2
-    Color Transformer: FlatColor
-    Decay Time: 0
-    Enabled: false
-    Position Transformer: XYZ
-    Selectable: false
-    Size (Pixels): 3
-    Size (m): 0.01
-    Style: Points
-    Use Fixed Frame: true
-    Use rainbow: true
-    Value: false
-    Name: nuc1 scan
-    Color: 255; 100; 25
-    Axis: Z
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc1/scan
-  - Class: rviz_default_plugins/Path
-    Enabled: true
-    Name: nuc1 path
-    Alpha: 1
-    Buffer Length: 1
-    Color: 255; 100; 25
-    Head Diameter: 0.3
-    Head Length: 0.2
-    Length: 0.3
-    Line Style: Billboards
-    Line Width: 0.04
-    Offset:
-      X: 0
-      Y: 0
-      Z: 0
-    Pose Color: 255; 100; 25
-    Pose Style: None
-    Radius: 0.03
-    Shaft Diameter: 0.1
-    Shaft Length: 0.1
-    Value: true
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc1/path
-  - Class: rviz_default_plugins/MarkerArray
-    Enabled: true
-    Name: nuc4 car
-    Namespaces: {}
-    Topic:
-      Depth: 5
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc4/marker
-    Value: true
-  - Angle Tolerance: 0.10000000149011612
-    Class: rviz_default_plugins/Odometry
-    Covariance:
-      Orientation:
-        Alpha: 0.5
-        Color: 255; 255; 127
-        Color Style: Unique
-        Frame: Local
-        Offset: 1
-        Scale: 1
-        Value: true
-      Position:
-        Alpha: 0.30000001192092896
-        Color: 204; 51; 204
-        Scale: 1
-        Value: true
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: nuc1 scan
+      Position Transformer: XYZ
+      Selectable: false
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Points
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc1/scan
+      Use Fixed Frame: true
+      Use rainbow: true
       Value: false
-    Enabled: true
-    Keep: 1
-    Name: nuc4 pose
-    Position Tolerance: 0.10000000149011612
-    Shape:
-      Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 255; 100; 25
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Billboards
+      Line Width: 0.03999999910593033
+      Name: nuc1 path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 100; 25
+      Pose Style: None
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc1/path
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: nuc4 car
+      Namespaces:
+        nuc4: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc4/marker
+      Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz_default_plugins/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: false
+      Enabled: true
+      Keep: 1
+      Name: nuc4 pose
+      Position Tolerance: 0.10000000149011612
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 50; 150; 255
+        Head Length: 0.20000000298023224
+        Head Radius: 0.10000000149011612
+        Shaft Length: 0.5
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc4/odom
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
       Color: 50; 150; 255
-      Head Length: 0.20000000298023224
-      Head Radius: 0.10000000149011612
-      Shaft Length: 0.5
-      Shaft Radius: 0.05000000074505806
-      Value: Arrow
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      Filter size: 10
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc4/odom
-    Value: true
-  - Alpha: 1
-    Autocompute Intensity Bounds: true
-    Class: rviz_default_plugins/PointCloud2
-    Color Transformer: FlatColor
-    Decay Time: 0
-    Enabled: false
-    Position Transformer: XYZ
-    Selectable: false
-    Size (Pixels): 3
-    Size (m): 0.01
-    Style: Points
-    Use Fixed Frame: true
-    Use rainbow: true
-    Value: false
-    Name: nuc4 scan
-    Color: 50; 150; 255
-    Axis: Z
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc4/scan
-  - Class: rviz_default_plugins/Path
-    Enabled: true
-    Name: nuc4 path
-    Alpha: 1
-    Buffer Length: 1
-    Color: 50; 150; 255
-    Head Diameter: 0.3
-    Head Length: 0.2
-    Length: 0.3
-    Line Style: Billboards
-    Line Width: 0.04
-    Offset:
-      X: 0
-      Y: 0
-      Z: 0
-    Pose Color: 50; 150; 255
-    Pose Style: None
-    Radius: 0.03
-    Shaft Diameter: 0.1
-    Shaft Length: 0.1
-    Value: true
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc4/path
-  - Class: rviz_default_plugins/MarkerArray
-    Enabled: true
-    Name: nuc5 car
-    Namespaces: {}
-    Topic:
-      Depth: 5
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc5/marker
-    Value: true
-  - Angle Tolerance: 0.10000000149011612
-    Class: rviz_default_plugins/Odometry
-    Covariance:
-      Orientation:
-        Alpha: 0.5
-        Color: 255; 255; 127
-        Color Style: Unique
-        Frame: Local
-        Offset: 1
-        Scale: 1
-        Value: true
-      Position:
-        Alpha: 0.30000001192092896
-        Color: 204; 51; 204
-        Scale: 1
-        Value: true
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: nuc4 scan
+      Position Transformer: XYZ
+      Selectable: false
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Points
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc4/scan
+      Use Fixed Frame: true
+      Use rainbow: true
       Value: false
-    Enabled: true
-    Keep: 1
-    Name: nuc5 pose
-    Position Tolerance: 0.10000000149011612
-    Shape:
-      Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
-      Color: 75; 255; 75
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 50; 150; 255
+      Enabled: true
+      Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
-      Head Radius: 0.10000000149011612
-      Shaft Length: 0.5
-      Shaft Radius: 0.05000000074505806
-      Value: Arrow
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      Filter size: 10
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc5/odom
-    Value: true
-  - Alpha: 1
-    Autocompute Intensity Bounds: true
-    Class: rviz_default_plugins/PointCloud2
-    Color Transformer: FlatColor
-    Decay Time: 0
-    Enabled: false
-    Position Transformer: XYZ
-    Selectable: false
-    Size (Pixels): 3
-    Size (m): 0.01
-    Style: Points
-    Use Fixed Frame: true
-    Use rainbow: true
-    Value: false
-    Name: nuc5 scan
-    Color: 75; 255; 75
-    Axis: Z
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc5/scan
-  - Class: rviz_default_plugins/Path
-    Enabled: true
-    Name: nuc5 path
-    Alpha: 1
-    Buffer Length: 1
-    Color: 75; 255; 75
-    Head Diameter: 0.3
-    Head Length: 0.2
-    Length: 0.3
-    Line Style: Billboards
-    Line Width: 0.04
-    Offset:
-      X: 0
-      Y: 0
-      Z: 0
-    Pose Color: 75; 255; 75
-    Pose Style: None
-    Radius: 0.03
-    Shaft Diameter: 0.1
-    Shaft Length: 0.1
-    Value: true
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc5/path
-  - Class: rviz_default_plugins/Image
-    Enabled: true
-    Max Value: 1
-    Median window: 5
-    Min Value: 0
-    Name: nuc1 camera
-    Normalize Range: true
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc1/image/compressed
-    Value: true
-  - Class: rviz_default_plugins/Image
-    Enabled: true
-    Max Value: 1
-    Median window: 5
-    Min Value: 0
-    Name: nuc5 camera
-    Normalize Range: true
-    Topic:
-      Depth: 1
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc5/image/compressed
-    Value: true
+      Length: 0.30000001192092896
+      Line Style: Billboards
+      Line Width: 0.03999999910593033
+      Name: nuc4 path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 50; 150; 255
+      Pose Style: None
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc4/path
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: nuc5 car
+      Namespaces:
+        nuc5: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc5/marker
+      Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz_default_plugins/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: false
+      Enabled: true
+      Keep: 1
+      Name: nuc5 pose
+      Position Tolerance: 0.10000000149011612
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 75; 255; 75
+        Head Length: 0.20000000298023224
+        Head Radius: 0.10000000149011612
+        Shaft Length: 0.5
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc5/odom
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 75; 255; 75
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: nuc5 scan
+      Position Transformer: XYZ
+      Selectable: false
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Points
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc5/scan
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 75; 255; 75
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Billboards
+      Line Width: 0.03999999910593033
+      Name: nuc5 path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 75; 255; 75
+      Pose Style: None
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc5/path
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: nuc1 camera
+      Normalize Range: true
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc1/image/compressed
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: nuc5 camera
+      Normalize Range: true
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc5/image/compressed
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -432,53 +478,53 @@ Visualization Manager:
     Frame Rate: 30
   Name: root
   Tools:
-  - Class: rviz_default_plugins/Interact
-    Hide Inactive Objects: true
-  - Class: rviz_default_plugins/MoveCamera
-  - Class: fleet_rviz_tools/PoseNuc1
-    Covariance x: 0.25
-    Covariance y: 0.25
-    Covariance yaw: 0.06853891909122467
-    Topic:
-      Depth: 5
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc1/initialpose
-  - Class: fleet_rviz_tools/PoseNuc4
-    Covariance x: 0.25
-    Covariance y: 0.25
-    Covariance yaw: 0.06853891909122467
-    Topic:
-      Depth: 5
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc4/initialpose
-  - Class: fleet_rviz_tools/PoseNuc5
-    Covariance x: 0.25
-    Covariance y: 0.25
-    Covariance yaw: 0.06853891909122467
-    Topic:
-      Depth: 5
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /nuc5/initialpose
-  - Class: fleet_rviz_tools/StartLine
-    Topic:
-      Depth: 5
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /race/start_line
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: fleet_rviz_tools/PoseNuc1
+      Covariance x: 0.25
+      Covariance y: 0.25
+      Covariance yaw: 0.06853891909122467
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc1/initialpose
+    - Class: fleet_rviz_tools/PoseNuc4
+      Covariance x: 0.25
+      Covariance y: 0.25
+      Covariance yaw: 0.06853891909122467
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc4/initialpose
+    - Class: fleet_rviz_tools/PoseNuc5
+      Covariance x: 0.25
+      Covariance y: 0.25
+      Covariance yaw: 0.06853891909122467
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /nuc5/initialpose
+    - Class: fleet_rviz_tools/StartLine
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /race/start_line
   Transformation:
     Current:
       Class: rviz_default_plugins/TF
   Value: true
   Views:
     Current:
-      Angle: 0.35999980568885803
+      Angle: 0.03499986231327057
       Class: rviz_default_plugins/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -488,28 +534,29 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 53.61961364746094
+      Scale: 108.17539978027344
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz_default_plugins)
-      X: 3.952157974243164
-      Y: 3.7609848976135254
-    Saved: null
+      X: 0.2739027738571167
+      Y: 4.585409641265869
+    Saved: ~
 Window Geometry:
+  Autodrive:
+    collapsed: false
   Displays:
     collapsed: false
-  Height: 1011
+  Height: 1531
   Hide Left Dock: false
   Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd00000002000000000000019c000005a1fc0200000004fb000000100044006900730070006c006100790073010000003d00000223000000c900fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000001a2000000bd0000005c00fffffffb00000012004100750074006f0064007200690076006501000002660000011e000000e800fffffffb000000080052006100630065010000038a00000254000000c600ffffff000000010000036e000005a1fc0200000002fb00000016006e007500630031002000630061006d006500720061010000003d000002b80000001600fffffffb00000016006e007500630035002000630061006d00650072006101000002fb000002e30000001600ffffff000004a8000005a100000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Race:
+    collapsed: false
   Tool Properties:
     collapsed: false
-  Width: 1854
+  Width: 2494
   X: 66
   Y: 32
   nuc1 camera:
     collapsed: false
   nuc5 camera:
-    collapsed: false
-  Autodrive:
-    collapsed: false
-  Race:
     collapsed: false

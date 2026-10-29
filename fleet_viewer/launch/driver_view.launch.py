@@ -19,7 +19,7 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 SHARE = get_package_share_directory('fleet_viewer')
-DEFAULT_MAP = os.path.join(SHARE, 'maps', 'run_1016_1436', 'run_1016_1436.yaml')
+DEFAULT_MAP = os.path.join(SHARE, 'maps', 'nuc4_map_1029_1905', 'nuc4_map_1029_1905.yaml')
 PATH_COLOR = {'nuc1': '255; 100; 25', 'nuc4': '50; 150; 255', 'nuc5': '75; 255; 75'}
 
 # QMainWindow state: right half = race HUD (top, `hud` px high) over the camera dock (made with an

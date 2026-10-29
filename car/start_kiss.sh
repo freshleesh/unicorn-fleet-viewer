@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kiss_icp_localization on a GLIM map: start_kiss.sh [map_name]  (map at ~/maps/<name>/<name>.pcd + .yaml)
 # Waits for a pose: use the "Pose: <car>" tool in the PC's RViz.
-MAP="${1:-run_1016_1436}"
+MAP="${1:-nuc4_map_1029_1905}"
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 export PATH=$HOME/miniforge3/bin:$PATH
 source "${UNICORN_SETUP:-$HOME/unicorn_ws/src/unicorn-racing-stack/unicorn.sh}" >/dev/null 2>&1

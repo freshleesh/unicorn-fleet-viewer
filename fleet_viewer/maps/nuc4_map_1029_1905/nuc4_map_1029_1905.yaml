@@ -1,0 +1,6 @@
+image: nuc4_map_1029_1905.pgm
+resolution: 0.05
+origin: [-49.6227, -9.8498, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196

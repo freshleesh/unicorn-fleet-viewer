@@ -140,15 +140,15 @@ private domain 11 / 14 / 15 on localhost only, shared domain 1 on Wi-Fi.
 **Start** — one terminal (or tmux pane) each, on the car, in this order:
 
 ```bash
-~/expo_config/start_low_level.sh geofence_map:=run_1016_1436   # VESC, lidar, camera, mux
-~/expo_config/start_kiss.sh run_1016_1436                      # localization; then "Pose: <car>" in RViz
+~/expo_config/start_low_level.sh geofence_map:=nuc4_map_1029_1905   # VESC, lidar, camera, mux
+~/expo_config/start_kiss.sh nuc4_map_1029_1905                      # localization; then "Pose: <car>" in RViz
 ~/expo_config/start_relay.sh                                   # appears on the PC as /<car>/...
-~/expo_config/start_planner.sh run_1016_1436                   # agent driver (autonomous / guest practice)
+~/expo_config/start_planner.sh nuc4_map_1029_1905                   # agent driver (autonomous / guest practice)
 ```
 
 Without the planner the car is pad-only. With it, **AUTO** in the Autodrive panel (or RB on the pad)
 hands the car to the planner; OFF or LB takes it back. Planner tuning goes as ROS args,
-e.g. `start_planner.sh run_1016_1436 -p follow_gap:=0.6`.
+e.g. `start_planner.sh nuc4_map_1029_1905 -p follow_gap:=0.6`.
 
 The planner drives round the ring for ever: every 0.2 s an A* search from the car to the
 centreline point a third of a lap ahead, one-way (never against the track direction), cost =
