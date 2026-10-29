@@ -106,12 +106,14 @@ private:
 class StartLineTool : public rviz_default_plugins::tools::GoalTool
 {
 public:
+  explicit StartLineTool(QString car = "") : car_(car) {}
   void onInitialize() override
   {
     GoalTool::onInitialize();
-    setName("Start Line");
-    getPropertyContainer()->subProp("Topic")->setValue("/race/start_line");
-    const QColor color(255, 215, 0);
+    setName(car_.isEmpty() ? "Start Line" : "Start: " + car_);
+    getPropertyContainer()->subProp("Topic")->setValue(
+      car_.isEmpty() ? "/race/start_line" : "/race/" + car_ + "/start_line");
+    const QColor color(car_.isEmpty() ? "#ffd700" : carColor(car_));
     arrow_->setColor(color.redF(), color.greenF(), color.blueF(), 1.0f);
     QPixmap icon = rviz_common::loadPixmap("package://rviz_default_plugins/icons/classes/SetGoal.png");
     QPainter p(&icon);
@@ -120,7 +122,12 @@ public:
     p.end();
     setIcon(QIcon(icon));
   }
+private:
+  QString car_;
 };
+class StartLineNuc1 : public StartLineTool { public: StartLineNuc1() : StartLineTool("nuc1") {} };
+class StartLineNuc4 : public StartLineTool { public: StartLineNuc4() : StartLineTool("nuc4") {} };
+class StartLineNuc5 : public StartLineTool { public: StartLineNuc5() : StartLineTool("nuc5") {} };
 
 // ---------------------------------------------------------------- race control panel (main view)
 
@@ -161,6 +168,13 @@ public:
     auto * layout = new QVBoxLayout;
     layout->addLayout(top);
     layout->addWidget(status_);
+    auto * hint = new QLabel("Set Start: nuc1 / nuc4 / nuc5 in the toolbar. Only cars with a line join.");
+    hint->setWordWrap(true);
+    layout->addWidget(hint);
+    auto * clear = new QPushButton("Clear start lines");
+    clear->setToolTip("RESET first. Removes all saved start lines so you can choose new participants.");
+    connect(clear, &QPushButton::clicked, this, [this] { command("clear_lines"); });
+    layout->addWidget(clear);
     layout->addLayout(grid);
     layout->addStretch();
     setLayout(layout);
@@ -220,7 +234,7 @@ private:
     } else if (phase == "finished") {
       text = "FINISHED";
     } else {
-      text = "ready";
+      text = "ready (" + s["start_mode"].toString("shared") + ")";
     }
     if (!s["line_set"].toBool()) {
       text += "  <font color='#c62828'>(set the start line)</font>";
@@ -242,7 +256,7 @@ private:
       QStringList v{in ? QString::number(c["pos"].toInt()) : "",
                     QString("<b><font color='%1'>%2</font></b>").arg(carColor(car), car),
                     in ? QString("%1/%2").arg(c["lap"].toInt()).arg(c["laps_total"].toInt())
-                       : (c["on_track"].toBool() ? "on track" : "off"),
+                       : (!c["line_set"].toBool() ? "set start line" : (c["on_track"].toBool() ? "ready" : "off")),
                     in ? fmtTime(c["last"]) : "", in ? fmtTime(c["best"]) : "",
                     in && c["finished"].toBool() ? fmtTime(c["total"]) : ""};
       for (int k = 0; k < v.size(); ++k) {
@@ -349,7 +363,7 @@ private:
       return;
     }
     if (!c["in_race"].toBool()) {
-      show(name, "", "", "not in this race (not on track at GO)");
+      show(name, "", "", "not entered (needs start line and live pose at GO)");
       return;
     }
     const QString pos = QString("P%1<span style='font-size:24pt; color:#888;'>/%2</span>")
@@ -380,3 +394,7 @@ private:
 PLUGINLIB_EXPORT_CLASS(fleet_rviz_tools::StartLineTool, rviz_common::Tool)
 PLUGINLIB_EXPORT_CLASS(fleet_rviz_tools::RacePanel, rviz_common::Panel)
 PLUGINLIB_EXPORT_CLASS(fleet_rviz_tools::RaceHud, rviz_common::Panel)
+
+PLUGINLIB_EXPORT_CLASS(fleet_rviz_tools::StartLineNuc1, rviz_common::Tool)
+PLUGINLIB_EXPORT_CLASS(fleet_rviz_tools::StartLineNuc4, rviz_common::Tool)
+PLUGINLIB_EXPORT_CLASS(fleet_rviz_tools::StartLineNuc5, rviz_common::Tool)

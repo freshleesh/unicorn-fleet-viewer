@@ -23,4 +23,13 @@
   <class name="fleet_rviz_tools/RaceHud" type="fleet_rviz_tools::RaceHud" base_class_type="rviz_common::Panel">
     <description>Driver HUD for one car (config key Car): position, lap, lap time (/race/state).</description>
   </class>
+  <class name="fleet_rviz_tools/StartLineNuc1" type="fleet_rviz_tools::StartLineNuc1" base_class_type="rviz_common::Tool">
+    <description>Set nuc1 start/finish line and direction.</description>
+  </class>
+  <class name="fleet_rviz_tools/StartLineNuc4" type="fleet_rviz_tools::StartLineNuc4" base_class_type="rviz_common::Tool">
+    <description>Set nuc4 start/finish line and direction.</description>
+  </class>
+  <class name="fleet_rviz_tools/StartLineNuc5" type="fleet_rviz_tools::StartLineNuc5" base_class_type="rviz_common::Tool">
+    <description>Set nuc5 start/finish line and direction.</description>
+  </class>
 </library>

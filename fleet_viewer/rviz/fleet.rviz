@@ -543,13 +543,12 @@ Visualization Manager:
       History Policy: Keep Last
       Reliability Policy: Reliable
       Value: /nuc5/initialpose
-  - Class: fleet_rviz_tools/StartLine
-    Topic:
-      Depth: 5
-      Durability Policy: Volatile
-      History Policy: Keep Last
-      Reliability Policy: Reliable
-      Value: /race/start_line
+  - Class: fleet_rviz_tools/StartLineNuc1
+    Topic: /race/nuc1/start_line
+  - Class: fleet_rviz_tools/StartLineNuc4
+    Topic: /race/nuc4/start_line
+  - Class: fleet_rviz_tools/StartLineNuc5
+    Topic: /race/nuc5/start_line
   Transformation:
     Current:
       Class: rviz_default_plugins/TF

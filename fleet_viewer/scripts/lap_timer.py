@@ -9,7 +9,7 @@ Lap times are this PC's receive times of /<car>/odom (car clocks are not synced)
 crossing moment interpolated between two odom messages.
 
   in : /<car>/odom, /race/start_line (PoseStamped: where + driving direction, from the
-       "Start Line" RViz tool), /race/command (String: "start <laps>" | "reset")
+       "Start Line" RViz tool; per-car overrides: /race/<car>/start_line), /race/command (String: "start <laps>" | "reset")
   out: /race/state (String, JSON, 10 Hz), /race/marker (MarkerArray: chequered line + direction)
 
   lap_timer.py --ros-args -p map:=<track.yaml>
@@ -216,7 +216,8 @@ class LapTimer:
         self.race = Race(self.track.length)
         self.log = self.node.get_logger()
         self.log.info(f'{map_yaml}: centreline {self.track.length:.1f} m')
-        self.line_idx, self.dir, self.line_set = 0, 1, False
+        self.lines = {}
+        self.map_yaml = os.path.realpath(map_yaml)
         self.cars = {}                       # car -> dict(idx, s, t)
         self.state_pub = self.node.create_publisher(String, '/race/state', 10)
         self.marker_pub = self.node.create_publisher(MarkerArray, '/race/marker', LATCHED)
@@ -224,38 +225,73 @@ class LapTimer:
             self.node.create_subscription(Odometry, f'/{car}/odom',
                                           lambda m, c=car: self.on_odom(c, m), qos_profile_sensor_data)
         self.node.create_subscription(PoseStamped, '/race/start_line', self.on_line, 10)
+        for car in CARS:
+            self.node.create_subscription(PoseStamped, f'/race/{car}/start_line',
+                                          lambda m, c=car: self.on_line(m, c), 10)
         self.node.create_subscription(String, '/race/command', self.on_command, 10)
         self.node.create_timer(0.1, self.tick)
         if os.path.isfile(LINE_FILE):
-            p = yaml.safe_load(open(LINE_FILE))
-            self.set_line(p['x'], p['y'], p['yaw'], save=False)
-        else:
-            self.publish_marker()
-
-    # start line ------------------------------------------------------------
-    def set_line(self, x, y, yaw, save=True):
-        i = self.track.project(x, y)
-        tx, ty = self.track.tangent[i]
-        self.line_idx, self.dir, self.line_set = i, (1 if tx * math.cos(yaw) + ty * math.sin(yaw) >= 0 else -1), True
-        if save:
-            os.makedirs(os.path.dirname(LINE_FILE), exist_ok=True)
-            with open(LINE_FILE, 'w') as f:
-                yaml.safe_dump({'x': float(x), 'y': float(y), 'yaw': float(yaw)}, f)
-        self.log.info(f'start line at {self.track.s[i]:.1f} m of {self.track.length:.1f} m, '
-                      f'{"with" if self.dir > 0 else "against"} the centreline order')
+            try:
+                with open(LINE_FILE) as f:
+                    saved = yaml.safe_load(f) or {}
+                if 'lines' in saved:
+                    if saved.get('map') == self.map_yaml:
+                        for car, p in saved['lines'].items():
+                            if car in (*CARS, 'shared'):
+                                self.set_line(p['x'], p['y'], p['yaw'], car, save=False)
+                    else:
+                        self.log.warn('saved start lines belong to a different map; set new lines')
+                elif all(k in saved for k in ('x', 'y', 'yaw')):
+                    self.set_line(saved['x'], saved['y'], saved['yaw'], save=False)
+            except (OSError, ValueError, TypeError, KeyError, yaml.YAMLError) as e:
+                self.log.warn(f'could not restore start lines: {e}')
         self.publish_marker()
 
-    def on_line(self, msg):
+    # start lines -----------------------------------------------------------
+    def line_for(self, car):
+        # Once individual lines are set, only explicitly configured cars participate.
+        if any(c in self.lines for c in CARS):
+            return self.lines.get(car)
+        return self.lines.get('shared')
+
+    def save_lines(self):
+        os.makedirs(os.path.dirname(LINE_FILE), exist_ok=True)
+        payload = {'map': self.map_yaml, 'lines': {
+            car: {k: line[k] for k in ('x', 'y', 'yaw')} for car, line in self.lines.items()}}
+        tmp = LINE_FILE + '.tmp'
+        with open(tmp, 'w') as f:
+            yaml.safe_dump(payload, f)
+        os.replace(tmp, LINE_FILE)
+
+    def set_line(self, x, y, yaw, car='shared', save=True):
+        if car not in (*CARS, 'shared') or not all(math.isfinite(v) for v in (x, y, yaw)):
+            raise ValueError('invalid start line')
+        i = self.track.project(x, y)
+        tx, ty = self.track.tangent[i]
+        direction = 1 if tx * math.cos(yaw) + ty * math.sin(yaw) >= 0 else -1
+        self.lines[car] = dict(idx=i, direction=direction, x=float(x), y=float(y), yaw=float(yaw))
+        if save:
+            self.save_lines()
+        self.log.info(f'{car} start line at {self.track.s[i]:.1f} m, direction {direction:+d}')
+        self.publish_marker()
+
+    def on_line(self, msg, car='shared'):
+        if self.race.phase in ('countdown', 'running'):
+            self.log.warn('race in progress: start line not moved; RESET first')
+            return
+        if msg.header.frame_id != 'map':
+            self.log.warn('start line must be in map frame')
+            return
         q = msg.pose.orientation
         yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
-        if self.race.phase in ('countdown', 'running'):
-            self.log.warn('race in progress: start line not moved')
-            return
-        self.set_line(msg.pose.position.x, msg.pose.position.y, yaw)
+        try:
+            self.set_line(msg.pose.position.x, msg.pose.position.y, yaw, car)
+        except ValueError as e:
+            self.log.warn(str(e))
 
-    def offset(self, idx):
-        """Forward distance from the start line to centreline point idx, in [0, L)."""
-        return (self.dir * (self.track.s[idx] - self.track.s[self.line_idx])) % self.track.length
+    def offset(self, car, idx):
+        line = self.line_for(car)
+        return (line['direction'] * (self.track.s[idx] - self.track.s[line['idx']])) % self.track.length
 
     # cars ------------------------------------------------------------------
     def on_odom(self, car, msg):
@@ -267,8 +303,11 @@ class LapTimer:
         self.cars[car] = {'idx': idx, 't': now}
         if not fresh:
             return
+        line = self.line_for(car)
+        if line is None:
+            return
         L = self.track.length
-        ds = (self.dir * (self.track.s[idx] - self.track.s[prev['idx']]) + L / 2) % L - L / 2
+        ds = (line['direction'] * (self.track.s[idx] - self.track.s[prev['idx']]) + L / 2) % L - L / 2
         if abs(ds) > JUMP:                   # relocalised (Pose tool): not driving
             return
         self.race.advance(car, ds, prev['t'], now)
@@ -278,9 +317,26 @@ class LapTimer:
         if not words:
             return
         if words[0] == 'start':
-            laps = int(words[1]) if len(words) > 1 else 3
+            if self.race.phase in ('countdown', 'running'):
+                self.log.warn('race already active; RESET first')
+                return
+            if not any(self.line_for(c) for c in CARS):
+                self.log.warn('set at least one start line before START')
+                return
+            try:
+                laps = int(words[1]) if len(words) > 1 else 3
+            except ValueError:
+                self.log.warn('invalid lap count')
+                return
             self.race.start(max(1, laps), time.monotonic())
             self.log.info(f'race: {laps} laps, GO in {COUNTDOWN:.0f} s')
+        elif words[0] == 'clear_lines':
+            if self.race.phase in ('countdown', 'running'):
+                self.log.warn('RESET before clearing start lines')
+                return
+            self.lines.clear()
+            self.save_lines()
+            self.publish_marker()
         elif words[0] == 'reset':
             self.race.reset()
             self.log.info('race reset')
@@ -289,13 +345,19 @@ class LapTimer:
         now = time.monotonic()
         r = self.race
         if r.phase == 'countdown' and now >= r.go_time:
-            on_track = {c: self.offset(v['idx']) for c, v in self.cars.items() if now - v['t'] < STALE}
-            r.go(on_track)
+            on_track = {c: self.offset(c, v['idx']) for c, v in self.cars.items()
+                        if now - v['t'] < STALE and self.line_for(c) is not None}
+            if not on_track:
+                r.reset()
+                self.log.warn('race cancelled: no cars with a start line and fresh odometry')
+            else:
+                r.go(on_track)
             self.log.info(f'GO: {", ".join(on_track) or "no cars on track"}')
         pos = r.standings()
         cars = {}
         for car in CARS:
-            st = {'on_track': car in self.cars and now - self.cars[car]['t'] < STALE}
+            st = {'on_track': car in self.cars and now - self.cars[car]['t'] < STALE,
+                  'line_set': self.line_for(car) is not None}
             c = r.cars.get(car)
             if c is not None:
                 st.update(in_race=True, pos=pos[car], lap=c.laps, laps_total=r.laps_total,
@@ -306,7 +368,8 @@ class LapTimer:
                 st['in_race'] = False
             cars[car] = st
         state = {
-            'phase': r.phase, 'laps_total': r.laps_total, 'line_set': self.line_set,
+            'phase': r.phase, 'laps_total': r.laps_total, 'line_set': bool(self.lines),
+            'start_mode': 'individual' if any(c in self.lines for c in CARS) else 'shared',
             'countdown': max(0.0, r.go_time - now) if r.phase == 'countdown' else None,
             'clock': now - r.go_time if r.phase == 'running' else None,
             'cars': cars, 'n_in_race': len(r.cars),
@@ -315,14 +378,35 @@ class LapTimer:
 
     # marker ----------------------------------------------------------------
     def publish_marker(self):
-        tr, i = self.track, self.line_idx
-        (x, y), (tx, ty) = tr.pts[i], tr.tangent[i] * self.dir
+        markers = []
+        active = {c: self.lines[c] for c in CARS if c in self.lines}
+        if not active and 'shared' in self.lines:
+            active = {'shared': self.lines['shared']}
+        # Delete only inactive IDs; active IDs are replaced by their ADD markers.
+        for car in ('shared', *CARS):
+            if car in active:
+                continue
+            for mid in range(3):
+                m = Marker()
+                m.header.frame_id = 'map'
+                m.ns, m.id, m.action = f'start_line_{car}', mid, Marker.DELETE
+                markers.append(m)
+        for car, line in active.items():
+            markers.extend(self.line_markers(car, line))
+        self.marker_pub.publish(MarkerArray(markers=markers))
+
+    def line_markers(self, car, line):
+        tr, i = self.track, line['idx']
+        (x, y), (tx, ty) = tr.pts[i], tr.tangent[i] * line['direction']
+        ns = f'start_line_{car}'
+        color = {'nuc1': (1., .39, .1), 'nuc4': (.2, .59, 1.),
+                 'nuc5': (.29, 1., .29), 'shared': (1., .85, 0.)}[car]
         nx, ny = -ty, tx
         hw = max(tr.half_width[i], 0.3)
         sq = 0.1
         chk = Marker()
         chk.header.frame_id = 'map'
-        chk.ns, chk.id, chk.type = 'start_line', 0, Marker.CUBE_LIST
+        chk.ns, chk.id, chk.type = ns, 0, Marker.CUBE_LIST
         chk.pose.orientation.w = 1.0
         chk.scale.x = chk.scale.y = sq
         chk.scale.z = 0.01
@@ -333,22 +417,22 @@ class LapTimer:
                 along = (row - 0.5) * sq
                 chk.points.append(Point(x=float(x + nx * off + tx * along), y=float(y + ny * off + ty * along), z=0.02))
                 v = 1.0 if (k + row) % 2 else 0.0
-                chk.colors.append(ColorRGBA(r=v, g=v, b=v, a=1.0 if self.line_set else 0.4))
+                chk.colors.append(ColorRGBA(r=v, g=v, b=v, a=1.0))
         arrow = Marker()
         arrow.header.frame_id = 'map'
-        arrow.ns, arrow.id, arrow.type = 'start_line', 1, Marker.ARROW
+        arrow.ns, arrow.id, arrow.type = ns, 1, Marker.ARROW
         arrow.points = [Point(x=float(x + tx * 0.15), y=float(y + ty * 0.15), z=0.03),
                         Point(x=float(x + tx * 0.75), y=float(y + ty * 0.75), z=0.03)]
         arrow.scale.x, arrow.scale.y, arrow.scale.z = 0.06, 0.15, 0.15
-        arrow.color = ColorRGBA(r=1.0, g=0.85, b=0.0, a=1.0)
+        arrow.color = ColorRGBA(r=color[0], g=color[1], b=color[2], a=1.0)
         label = Marker()
         label.header.frame_id = 'map'
-        label.ns, label.id, label.type = 'start_line', 2, Marker.TEXT_VIEW_FACING
+        label.ns, label.id, label.type = ns, 2, Marker.TEXT_VIEW_FACING
         label.pose.position.x, label.pose.position.y, label.pose.position.z = float(x + nx * (hw + 0.3)), float(y + ny * (hw + 0.3)), 0.3
         label.scale.z = 0.25
-        label.color = ColorRGBA(r=1.0, g=0.85, b=0.0, a=1.0)
-        label.text = 'START' if self.line_set else 'START (not set)'
-        self.marker_pub.publish(MarkerArray(markers=[chk, arrow, label]))
+        label.color = ColorRGBA(r=color[0], g=color[1], b=color[2], a=1.0)
+        label.text = f'{car} START / FINISH'
+        return [chk, arrow, label]
 
 
 def main():

@@ -70,11 +70,18 @@ Closing RViz stops the map servers too.
 
 **Race** (N-lap race; `lap_timer.py` runs inside `view_fleet.launch.py`)
 
-1. Toolbar **Start Line** — click on the track where the start/finish line goes and drag in the
-   race direction. A chequered line with an arrow appears; it is saved in
-   `~/.ros/race_start_line.yaml` and comes back on the next start.
-2. **Race** panel — pick the number of laps, **START**: 3 s countdown, then GO. Every car whose
-   pose is live at GO is in the race. **RESET** clears it.
+1. Toolbar **Start: nuc1 / nuc4 / nuc5** — click each car's start/finish location and drag
+   in its driving direction. For head-to-head racing, set two separate lines (for example
+   nuc1 and nuc4). Labels/arrows use each car's colour. Each car counts laps from its own
+   line, so their positions compare progress relative to their own starts.
+   Lines are saved in `~/.ros/race_start_line.yaml`, tagged with the map path, and restored
+   on restart with the same map. Existing shared-line files remain supported.
+2. **Race** panel — pick the number of laps, **START**: one 3 s countdown, simultaneous GO.
+   In individual mode, only cars with their own line and a live pose at GO participate.
+   Place each car just behind its own line. The initial crossing does not count as a lap.
+   **RESET** clears the race but preserves lines; **Clear start lines** removes all lines
+   so you can choose a different set of participants. Lines cannot change during a race.
+   START controls timing only; it does not engage AUTO or command vehicle movement.
 3. The panel shows position, lap, last / best lap and total time per car; each driver screen shows
    its car's position, lap, running lap time and, at the end, FINISH and the total time.
    Finished cars are only marked, not stopped.
