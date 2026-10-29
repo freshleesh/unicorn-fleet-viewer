@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Publish a binary PCD (x y z [intensity], float32) once as a latched PointCloud2.
-usage: pcd_publisher.py <file.pcd> [topic=/map_cloud] [frame=map]"""
+usage: pcd_publisher.py <file.pcd> [topic=/map_cloud] [frame=map] [z_min z_max]   (z band: keep only those heights)"""
 import sys
 
 import numpy as np
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.qos import QoSProfile, DurabilityPolicy
 from sensor_msgs.msg import PointCloud2, PointField
 
@@ -29,10 +30,14 @@ def read_pcd(path):
 
 
 def main():
-    path = sys.argv[1]
-    topic = sys.argv[2] if len(sys.argv) > 2 else '/map_cloud'
-    frame = sys.argv[3] if len(sys.argv) > 3 else 'map'
+    argv = rclpy.utilities.remove_ros_args(sys.argv)     # launch appends --ros-args ...
+    path = argv[1]
+    topic = argv[2] if len(argv) > 2 else '/map_cloud'
+    frame = argv[3] if len(argv) > 3 else 'map'
     fields, data = read_pcd(path)
+    if len(argv) > 5:
+        z = data[:, fields.index('z')]
+        data = np.ascontiguousarray(data[(z >= float(argv[4])) & (z <= float(argv[5]))])
     rclpy.init()
     node = rclpy.create_node('pcd_publisher')
     pub = node.create_publisher(PointCloud2, topic,
@@ -48,7 +53,10 @@ def main():
     msg.data = data.tobytes()
     pub.publish(msg)
     node.get_logger().info(f'{path}: {msg.width} points -> {topic} (latched)')
-    rclpy.spin(node)
+    try:
+        rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
 
 
 if __name__ == '__main__':

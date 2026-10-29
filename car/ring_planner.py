@@ -278,7 +278,7 @@ def main():
             self.follow_gap = float(P('follow_gap', 0.5))      # stop this far before a blocking car [m]
             others = P('opponents', ['nuc1', 'nuc4', 'nuc5'])
             me = os.uname().nodename
-            path = resolve_map_yaml(P('map', 'run_1016_1436'))
+            path = resolve_map_yaml(P('map', 'nuc4_map_1029_1905'))
             self.planner = Planner(Grid(TrackField(path), float(P('plan_res', 0.10))))
             self.get_logger().info(f'map {path}, grid {self.planner.g.w}x{self.planner.g.h} @ {self.planner.g.res} m, '
                                    f'speed {self.speed} m/s')

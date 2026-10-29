@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(fleet_viewer)
 find_package(ament_cmake REQUIRED)
-install(PROGRAMS scripts/pcd_publisher.py DESTINATION lib/${PROJECT_NAME})
+install(PROGRAMS scripts/pcd_publisher.py scripts/odom_tf.py scripts/lap_timer.py DESTINATION lib/${PROJECT_NAME})
 install(PROGRAMS tools/battery_watch.sh tools/vesc_voltage.py DESTINATION share/${PROJECT_NAME}/tools)
 install(DIRECTORY launch rviz maps env DESTINATION share/${PROJECT_NAME})
 ament_package()

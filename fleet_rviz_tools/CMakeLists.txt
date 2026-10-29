@@ -11,7 +11,7 @@ find_package(std_msgs REQUIRED)
 find_package(vesc_msgs REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
 set(CMAKE_AUTOMOC ON)
-add_library(${PROJECT_NAME} SHARED src/car_pose_tools.cpp src/autodrive_panel.cpp src/battery_panel.cpp)
+add_library(${PROJECT_NAME} SHARED src/car_pose_tools.cpp src/autodrive_panel.cpp src/battery_panel.cpp src/race_plugins.cpp)
 target_link_libraries(${PROJECT_NAME} PUBLIC
   rviz_common::rviz_common rviz_default_plugins::rviz_default_plugins rviz_rendering::rviz_rendering
   pluginlib::pluginlib Qt5::Widgets rclcpp::rclcpp ${sensor_msgs_TARGETS} ${std_msgs_TARGETS} ${vesc_msgs_TARGETS})

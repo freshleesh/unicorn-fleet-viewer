@@ -1,0 +1,191 @@
+# Driver screen template: driver_view.launch.py fills in the @...@ fields.
+# Left half: chase view behind @CAR@ (frame from odom_tf.py), right half: @CAR@'s camera.
+Panels:
+- Class: fleet_rviz_tools/RaceHud
+  Name: race
+  Car: @CAR@
+Visualization Manager:
+  Class: ''
+  Displays:
+  - Alpha: 0.8
+    Binary representation: false
+    Binary threshold: 100
+    Class: rviz_default_plugins/Map
+    Color Scheme: map
+    Draw Behind: true
+    Enabled: true
+    Name: Track 2D
+    Topic:
+      Depth: 1
+      Durability Policy: Transient Local
+      Filter size: 10
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /driver_@CAR@/map
+    Update Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /driver_@CAR@/map_updates
+    Use Timestamp: false
+    Value: true
+  - Alpha: 1
+    Autocompute Intensity Bounds: true
+    Class: rviz_default_plugins/PointCloud2
+    Color Transformer: AxisColor
+    Decay Time: 0
+    Enabled: true
+    Position Transformer: XYZ
+    Selectable: false
+    Size (Pixels): 2
+    Size (m): 0.01
+    Style: Points
+    Use Fixed Frame: true
+    Use rainbow: true
+    Value: true
+    Name: Map 3D
+    Color: 200; 200; 200
+    Axis: Z
+    Topic:
+      Depth: 1
+      Durability Policy: Transient Local
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /driver_@CAR@/map_cloud
+    Autocompute Value Bounds:
+      Max Value: 2
+      Min Value: -0.5
+      Value: true
+  - Class: rviz_default_plugins/MarkerArray
+    Enabled: true
+    Name: start line
+    Namespaces: {}
+    Topic:
+      Depth: 1
+      Durability Policy: Transient Local
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /race/marker
+    Value: true
+  - Class: rviz_default_plugins/MarkerArray
+    Enabled: true
+    Name: nuc1 car
+    Namespaces: {}
+    Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /nuc1/marker
+    Value: true
+  - Class: rviz_default_plugins/MarkerArray
+    Enabled: true
+    Name: nuc4 car
+    Namespaces: {}
+    Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /nuc4/marker
+    Value: true
+  - Class: rviz_default_plugins/MarkerArray
+    Enabled: true
+    Name: nuc5 car
+    Namespaces: {}
+    Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /nuc5/marker
+    Value: true
+  - Class: rviz_default_plugins/Path
+    Enabled: true
+    Name: @CAR@ path
+    Alpha: 1
+    Buffer Length: 1
+    Color: @PATH_COLOR@
+    Head Diameter: 0.3
+    Head Length: 0.2
+    Length: 0.3
+    Line Style: Billboards
+    Line Width: 0.04
+    Offset:
+      X: 0
+      Y: 0
+      Z: 0
+    Pose Color: @PATH_COLOR@
+    Pose Style: None
+    Radius: 0.03
+    Shaft Diameter: 0.1
+    Shaft Length: 0.1
+    Value: true
+    Topic:
+      Depth: 1
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /@CAR@/path
+  - Class: rviz_default_plugins/Image
+    Enabled: true
+    Max Value: 1
+    Median window: 5
+    Min Value: 0
+    Name: @CAR@ camera
+    Normalize Range: true
+    Topic:
+      Depth: 1
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /@CAR@/image/compressed
+    Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 30; 30; 30
+    Fixed Frame: map
+    Frame Rate: 30
+  Name: root
+  Tools:
+  - Class: rviz_default_plugins/MoveCamera
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/ThirdPersonFollower
+      Distance: 4.0
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 0.5
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: false
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.7
+      Target Frame: @CAR@
+      Value: ThirdPersonFollower (rviz_default_plugins)
+      Yaw: 3.14159
+    Saved: ~
+Window Geometry:
+  race:
+    collapsed: false
+  @CAR@ camera:
+    collapsed: false
+  Height: @HEIGHT@
+  Hide Left Dock: false
+  Hide Right Dock: false
+  QMainWindow State: @WINDOW_STATE@
+  Width: @WIDTH@
+  X: @X@
+  Y: @Y@

@@ -1,5 +1,5 @@
 // Fleet autodrive panel: per-car ON/OFF toggles + ALL ON / ALL OFF, and a per-car speed cap slider.
-// Speed cap (1..8 m/s) -> /<car>/max_speed (latched Float32): the ring planner's speed and the
+// Speed cap (nuc4: 1..10 m/s; other cars: 1..8 m/s) -> /<car>/max_speed (latched Float32): the ring planner's speed and the
 // joystick full-stick speed in simple_mux.
 // Uses the simple_mux joystick protocol, so the racing stack is untouched:
 //   ON  = Joy with RB (button 5) pressed            -> mux hands over to the planner (autodrive)

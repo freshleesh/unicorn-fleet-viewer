@@ -8,8 +8,10 @@ the cars on the same Wi-Fi and running their fleet relay (see [Topics](#topics-s
 
 - RViz fleet view: 2D track map, 3D point-cloud map, each car's body, pose, planned path,
   live scan and camera
+- Driver screens: chase view behind one car + race HUD and its camera, side by side
+- **N-lap race**: start line tool, countdown, lap timing, standings
 - Per-car **Pose** tools (car colour) to set each car's localization start pose
-- **Autodrive** panel: per-car AUTO / OFF, ALL AUTO / ALL OFF, per-car speed cap (1–8 m/s)
+- **Autodrive** panel: per-car AUTO / OFF, ALL AUTO / ALL OFF, per-car speed cap (nuc4: 1–10 m/s; nuc1/nuc5: 1–8 m/s)
 - Game pad → car bridge
 - Battery watch over ssh
 
@@ -66,6 +68,35 @@ Closing RViz stops the map servers too.
     full-stick speed. Sent when RViz opens, so opening RViz sets every car to the slider values.
     `File → Save Config` keeps the slider positions.
 
+**Race** (N-lap race; `lap_timer.py` runs inside `view_fleet.launch.py`)
+
+1. Toolbar **Start Line** — click on the track where the start/finish line goes and drag in the
+   race direction. A chequered line with an arrow appears; it is saved in
+   `~/.ros/race_start_line.yaml` and comes back on the next start.
+2. **Race** panel — pick the number of laps, **START**: 3 s countdown, then GO. Every car whose
+   pose is live at GO is in the race. **RESET** clears it.
+3. The panel shows position, lap, last / best lap and total time per car; each driver screen shows
+   its car's position, lap, running lap time and, at the end, FINISH and the total time.
+   Finished cars are only marked, not stopped.
+
+Laps are counted from progress along the track centreline, not from a line test: wobbling
+on the line or reversing never adds a lap, a pose reset (jump > 1.5 m) is ignored, and a car
+lined up just behind the line starts its first lap when it crosses it. Times use the main PC's
+clock (receive time of `/<car>/odom`, ~30 Hz, crossing interpolated).
+
+**Driver screens** (one per visitor car, on any PC on the fleet Wi-Fi)
+
+```bash
+ros2 launch fleet_viewer driver_view.launch.py car:=nuc1 x:=1920   # e.g. main PC, second monitor
+ros2 launch fleet_viewer driver_view.launch.py car:=nuc5           # e.g. another PC
+```
+
+Left half: chase view behind the car (track, walls, start line, every car, its planner path);
+right half: race HUD over the car's camera. `x`/`y` place the window (pick the monitor), `width`/`height` default to
+1920×1080. Each screen serves its own map copy and TF under `/driver_<car>/`, so the screens
+and the main view don't interfere wherever they run. The chase camera follows the frame
+`<car>` that `odom_tf.py` makes from `/<car>/odom`. Closing RViz stops the rest.
+
 **Game pads** (one per car)
 
 ```bash
@@ -119,15 +150,15 @@ private domain 11 / 14 / 15 on localhost only, shared domain 1 on Wi-Fi.
 **Start** — one terminal (or tmux pane) each, on the car, in this order:
 
 ```bash
-~/expo_config/start_low_level.sh geofence_map:=run_1016_1436   # VESC, lidar, camera, mux
-~/expo_config/start_kiss.sh run_1016_1436                      # localization; then "Pose: <car>" in RViz
+~/expo_config/start_low_level.sh geofence_map:=nuc4_map_1029_1905   # VESC, lidar, camera, mux
+~/expo_config/start_kiss.sh nuc4_map_1029_1905                      # localization; then "Pose: <car>" in RViz
 ~/expo_config/start_relay.sh                                   # appears on the PC as /<car>/...
-~/expo_config/start_planner.sh run_1016_1436                   # agent driver (autonomous / guest practice)
+~/expo_config/start_planner.sh nuc4_map_1029_1905                   # agent driver (autonomous / guest practice)
 ```
 
 Without the planner the car is pad-only. With it, **AUTO** in the Autodrive panel (or RB on the pad)
 hands the car to the planner; OFF or LB takes it back. Planner tuning goes as ROS args,
-e.g. `start_planner.sh run_1016_1436 -p follow_gap:=0.6`.
+e.g. `start_planner.sh nuc4_map_1029_1905 -p follow_gap:=0.6`.
 
 The planner drives round the ring for ever: every 0.2 s an A* search from the car to the
 centreline point a third of a lap ahead, one-way (never against the track direction), cost =
@@ -141,6 +172,9 @@ the panel's speed cap and slows down only if the road is fully blocked by a car.
 | `start_camera.sh` | restart only the OAK-D (e.g. `X_LINK_ERROR`); log `~/.ros/oak.log` |
 | `restart_mux.sh` | restart only the mux with its current params, e.g. after editing the geofence map |
 | `stop_all.sh` | stop everything above |
+| `start_joy.sh [N]` | pad plugged into the car itself (`/dev/input/jsN`) instead of the PC's `joy.launch.py` |
+| `mapping/record.sh <name>` | mapping bag for [glim_mapping](https://github.com/freshleesh/glim_mapping): `~/bag/<name>`, `/livox/lidar` + `/livox/imu` |
+| `mapping/start_lidar_relay.sh` | live lidar on the PC while mapping: `/<car>/livox/lidar` (5 Hz, frame `livox_frame`) |
 
 ## Topics shared with the cars
 
@@ -159,12 +193,14 @@ All on domain 1. Each car runs its own stack on a private domain and a relay cop
 | `/<car>/initialpose` | geometry_msgs/PoseWithCovarianceStamped | PC → car | Pose tools |
 | `/<car>/max_speed` | std_msgs/Float32 (transient local) | PC → car | speed cap |
 | `/map`, `/map_cloud` | OccupancyGrid, PointCloud2 | PC | track maps |
+| `/race/state`, `/race/marker` | String (JSON), MarkerArray | PC | lap_timer: standings, start line |
+| `/race/command`, `/race/start_line` | String, PoseStamped | PC | Race panel, Start Line tool |
 
 Cars: `nuc1` (orange), `nuc4` (blue), `nuc5` (green). The names and colours live in
 `fleet_rviz_tools/src/*.cpp` and `fleet_viewer/rviz/fleet.rviz`.
 
 ## Packages
 
-- `fleet_rviz_tools` — RViz plugins: `PoseNuc1/4/5` tools, `AutodrivePanel`
-- `fleet_viewer` — launch files, RViz config, bundled map, `pcd_publisher.py`, env script, battery tools
+- `fleet_rviz_tools` — RViz plugins: `PoseNuc1/4/5` and `StartLine` tools, `AutodrivePanel`, `RacePanel`, `RaceHud`
+- `fleet_viewer` — launch files (main view, driver screens, pads), RViz configs, bundled map, `pcd_publisher.py`, `odom_tf.py`, `lap_timer.py`, env script, battery tools
 - `car/` — not a package: scripts the cars run (env, relay, ring planner, start/stop), mux patch
