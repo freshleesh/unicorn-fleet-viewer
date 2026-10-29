@@ -5,8 +5,10 @@ Every replan (5 Hz) runs A* from the car to the track centreline point one third
 lap ahead. The track is one-way: a move may not point against the local track direction,
 so the search can never pick "turn round and go the other way" when the road ahead is
 busy. Cell cost = 1 + wall term + opponent term + "stay near the previous path" term.
-Pure pursuit follows the latest path at 50 Hz at the speed cap from the autodrive panel,
-slowing down only when the path runs into another car's footprint (no room to pass).
+Pure pursuit follows the latest path at 50 Hz. A speed planner runs on every new path: the speed
+cap from the autodrive panel is the top speed, each point is limited by its curvature
+(lateral acceleration a_lat), then accelerating out of corners is limited to a_acc and braking
+into them (or to a stop behind a car that blocks the whole road) to a_dec.
 No path -> keep the last one for 0.5 s, then speed 0.
 
 Runs on the car (private domain):
@@ -236,10 +238,46 @@ def smooth(pts, window=5, spacing=0.05):
     return np.stack([np.interp(t, s, pts[:, 0]), np.interp(t, s, pts[:, 1])], 1)
 
 
-def pure_pursuit(path, x, y, yaw, lookahead, wheelbase):
-    """Steering angle toward the point `lookahead` m ahead along the path from its nearest point."""
+def curvature(path, span=0.8, spacing=0.05):
+    """Signed curvature [1/m] at every path point from the circle through the points `span` m
+    before and after it (a wide stencil, so the smoothed grid staircase does not read as corners)."""
+    k = max(1, int(round(span / spacing)))
+    i = np.arange(len(path))
+    a, b, c = path[np.clip(i - k, 0, len(path) - 1)], path, path[np.clip(i + k, 0, len(path) - 1)]
+    cross = (b[:, 0] - a[:, 0]) * (c[:, 1] - a[:, 1]) - (b[:, 1] - a[:, 1]) * (c[:, 0] - a[:, 0])
+    den = (np.hypot(*(b - a).T) * np.hypot(*(c - b).T) * np.hypot(*(c - a).T))
+    return np.where(den > 1e-9, 2.0 * cross / np.maximum(den, 1e-9), 0.0)
+
+
+def speed_profile(path, cap, a_lat, a_acc, a_dec, v_floor=0.5, stop_at=None, spacing=0.05,
+                  span=0.8, smooth_len=0.5):
+    """Speed [m/s] at every path point: lateral-acceleration limit from the curvature, capped at `cap`,
+    then a forward pass (accelerate at most a_acc out of corners) and a backward pass (brake at most
+    a_dec into them, and to 0 at arc length `stop_at` when the road ahead is blocked)."""
+    kappa = np.abs(curvature(path, span, spacing))
+    if smooth_len > 0 and len(kappa) > 2:              # average out what is left of the grid staircase
+        k = max(1, int(round(smooth_len / spacing)))
+        kappa = np.convolve(np.pad(kappa, k // 2, mode='edge'), np.ones(k) / k, 'valid')[:len(path)]
+    v = np.minimum(cap, np.sqrt(a_lat / np.maximum(kappa, 1e-6)))
+    v = np.maximum(v, min(v_floor, cap))           # the stencil never sees a real 0-radius corner
+    if stop_at is not None:
+        v[int(max(0.0, stop_at) / spacing):] = 0.0
+    for i in range(1, len(v)):
+        v[i] = min(v[i], math.sqrt(v[i - 1] ** 2 + 2.0 * a_acc * spacing))
+    for i in range(len(v) - 2, -1, -1):
+        v[i] = min(v[i], math.sqrt(v[i + 1] ** 2 + 2.0 * a_dec * spacing))
+    return v
+
+
+def nearest(path, x, y):
+    """Index of the path point nearest to the car, searched in the first half (the path ends far ahead)."""
     d = np.hypot(path[:, 0] - x, path[:, 1] - y)
-    near = int(np.argmin(d[: max(1, len(path) // 2)]))     # nearest in the first half (path ends behind us)
+    return int(np.argmin(d[: max(1, len(path) // 2)]))
+
+
+def pure_pursuit(path, x, y, yaw, lookahead, wheelbase, near=None):
+    """Steering angle toward the point `lookahead` m ahead along the path from its nearest point."""
+    near = nearest(path, x, y) if near is None else near
     s = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(path[near:], axis=0).T))])
     j = near + int(min(np.searchsorted(s, lookahead), len(s) - 1))
     tx, ty = path[j]
@@ -276,6 +314,11 @@ def main():
             self.pose_timeout = float(P('pose_timeout', 0.3))
             self.opp_timeout = float(P('opp_timeout', 0.5))
             self.follow_gap = float(P('follow_gap', 0.5))      # stop this far before a blocking car [m]
+            # speed planner: the panel cap is the top speed, corners and blocking cars slow the car down
+            self.a_lat = float(P('a_lat', 4.0))              # max lateral acceleration in corners [m/s^2]
+            self.a_acc = float(P('a_acc', 3.0))              # max acceleration out of corners [m/s^2]
+            self.a_dec = float(P('a_dec', 4.0))              # max braking into corners / behind a car [m/s^2]
+            self.preview = float(P('speed_preview', 0.25))   # s: command the speed this far ahead (actuation lag)
             others = P('opponents', ['nuc1', 'nuc4', 'nuc5'])
             me = os.uname().nodename
             path = resolve_map_yaml(P('map', 'nuc4_map_1029_1905'))
@@ -284,11 +327,14 @@ def main():
                                    f'speed {self.speed} m/s')
 
             self.pose = None                 # (x, y, yaw), monotonic time
+            self.v_meas = 0.0                # measured speed from /car_state/odom [m/s]
             self.opp = {}                    # name -> ((x, y, yaw, v), monotonic time)
             self.path = None
+            self.profile = None              # speed at every path point (speed_profile)
             self.path_time = 0.0
             self.block = None
             self.last_steer = 0.0
+            self.last_speed = 0.0
             self.create_subscription(Odometry, '/car_state/odom', self._odom_cb, 10)
             for o in others:
                 if o != me:
@@ -307,6 +353,7 @@ def main():
         def _odom_cb(self, m):
             p = m.pose.pose
             self.pose = ((p.position.x, p.position.y, yaw_of(p.orientation)), time.monotonic())
+            self.v_meas = math.hypot(m.twist.twist.linear.x, m.twist.twist.linear.y)
 
         def _opp_cb(self, name, m):
             p = m.pose.pose
@@ -332,8 +379,10 @@ def main():
                 if t0 - self.path_time > self.keep_path:
                     self.path = None           # -> speed 0
                 return
-            self.path, self.path_time = path, t0
             self.block = self.planner.blocked_ahead(path, opps)
+            stop_at = None if self.block is None else self.block - self.follow_gap
+            self.profile = speed_profile(path, self.speed, self.a_lat, self.a_acc, self.a_dec, stop_at=stop_at)
+            self.path, self.path_time = path, t0
             if dt > 0.15:
                 self.get_logger().warn(f'slow replan {dt*1000:.0f} ms', throttle_duration_sec=5.0)
             if path is not None:
@@ -353,13 +402,23 @@ def main():
             cmd.header.stamp = self.get_clock().now().to_msg()
             pose, _ = self._fresh()
             if pose is not None and self.path is not None and len(self.path) > 2:
-                v = self.speed
+                path, profile = self.path, self.profile
+                near = nearest(path, pose[0], pose[1])
+                # planned speed a little ahead (the car reacts late), never above the current panel cap
+                j = min(len(path) - 1, near + int(self.v_meas * self.preview / 0.05))
+                v = min(float(profile[j]), self.speed)
+                # each replan brings a slightly different profile: rate-limit the command so it does not
+                # jitter, and ramp up from the measured speed (standstill, or after a hand-over)
+                dt = 0.02
+                v = min(v, self.last_speed + self.a_acc * dt, self.v_meas + self.a_acc * 0.5)
+                v = max(v, self.last_speed - 2.0 * self.a_dec * dt)
                 lookahead = min(2.5, max(0.6, self.lookahead_gain * v + 0.3))
-                steer = pure_pursuit(self.path, *pose, lookahead, self.wheelbase)
+                steer = pure_pursuit(path, *pose, lookahead, self.wheelbase, near)
                 self.last_steer = max(-self.max_steer, min(self.max_steer, steer))
                 if self.block is not None:                    # no room to pass: follow
                     v = min(v, max(0.0, 1.5 * (self.block - self.follow_gap)))
                 cmd.drive.speed = v
+            self.last_speed = cmd.drive.speed               # 0 when stopped (no pose / no path)
             cmd.drive.steering_angle = self.last_steer      # stopping keeps the last steering
             self.cmd_pub.publish(cmd)
 
