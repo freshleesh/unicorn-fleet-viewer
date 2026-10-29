@@ -23,6 +23,9 @@ Panels:
     Cells_nuc5: 4
     Class: fleet_rviz_tools/BatteryPanel
     Name: Battery
+  - Class: fleet_rviz_tools/RecordPanel
+    Folder: /home/leesh/bag
+    Name: Record
 Visualization Manager:
   Class: ""
   Displays:
@@ -104,6 +107,9 @@ Visualization Manager:
       Enabled: true
       Name: start line
       Namespaces:
+        start_line_nuc1: true
+        start_line_nuc4: true
+        start_line_nuc5: true
         start_line_shared: true
       Topic:
         Depth: 1
@@ -116,7 +122,7 @@ Visualization Manager:
       Enabled: true
       Name: nuc1 car
       Namespaces:
-        {}
+        nuc1: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -228,7 +234,7 @@ Visualization Manager:
       Enabled: true
       Name: nuc4 car
       Namespaces:
-        {}
+        nuc4: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -340,7 +346,7 @@ Visualization Manager:
       Enabled: true
       Name: nuc5 car
       Namespaces:
-        {}
+        nuc5: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -581,7 +587,7 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 108.17539978027344
+      Scale: 74.331298828125
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz_default_plugins)
       X: 0.2739027738571167

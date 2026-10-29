@@ -32,4 +32,7 @@
   <class name="fleet_rviz_tools/StartLineNuc5" type="fleet_rviz_tools::StartLineNuc5" base_class_type="rviz_common::Tool">
     <description>Set nuc5 start/finish line and direction.</description>
   </class>
+  <class name="fleet_rviz_tools/RecordPanel" type="fleet_rviz_tools::RecordPanel" base_class_type="rviz_common::Panel">
+    <description>REC / STOP a fleet bag (each car's odom, drive, camera + /race/state) into a chosen folder.</description>
+  </class>
 </library>
