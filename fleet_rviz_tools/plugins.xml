@@ -1,4 +1,7 @@
 <library path="fleet_rviz_tools">
+  <class name="fleet_rviz_tools/BatteryPanel" type="fleet_rviz_tools::BatteryPanel" base_class_type="rviz_common::Panel">
+    <description>Live fleet battery voltage and approximate voltage-based remaining percentage.</description>
+  </class>
   <class name="fleet_rviz_tools/PoseNuc1" type="fleet_rviz_tools::PoseNuc1" base_class_type="rviz_common::Tool">
     <description>2D Pose Estimate for nuc1 (/nuc1/initialpose)</description>
   </class>

@@ -28,6 +28,8 @@ sudo apt install ros-jazzy-rmw-cyclonedds-cpp ros-jazzy-nav2-map-server \
 ```bash
 mkdir -p ~/unicorn_fleet_ws/src && cd ~/unicorn_fleet_ws/src
 git clone https://github.com/freshleesh/unicorn-fleet-viewer.git
+# Use the same VESC message definitions as the vehicles (from the local racing stack).
+ln -s ~/unicorn_ws/src/unicorn-racing-stack/sensor/vesc/vesc_msgs vesc_msgs
 cd ~/unicorn_fleet_ws
 source /opt/ros/jazzy/setup.bash
 colcon build
@@ -75,6 +77,14 @@ ros2 launch fleet_viewer joy.launch.py car:=nuc5 device_id:=1
 Hold **LB** to drive (left stick: speed, right stick: steering). **RB** hands the car to autodrive.
 
 **Battery watch** (optional; needs passwordless `ssh nuc1` etc. to the cars)
+
+RViz also includes a **Battery** panel, subscribing to `/<car>/vesc/core`.
+It shows live voltage and an approximate voltage-based percentage, with configurable
+series cell count per car (default 4S LiPo). The display linearly maps 3.50–4.20 V/cell
+to 0–100%; this is a display estimate, not a calibrated state-of-charge measurement
+or a discharge cutoff. Driving load affects the estimate. Data older than 3 seconds
+shows disconnected instead of retaining the last percentage. Warning colors use the
+same 3.75/3.65 V-per-cell thresholds as the battery watch script.
 
 ```bash
 ~/unicorn_fleet_ws/install/fleet_viewer/share/fleet_viewer/tools/battery_watch.sh

@@ -79,6 +79,7 @@ class Relay:
                 opub = self.priv.create_publisher(Odometry, f'/fleet/{other}/odom', QOS)
                 self.pub.create_subscription(Odometry, f'/{other}/odom', opub.publish, QOS, raw=True)
         self._raw(Path, '/planner/path', f'{p}/path', IMG_QOS)
+        self._raw(Path, '/mpcc/global_path', f'{p}/global_path', LATCHED)
         cap_pub = self.priv.create_publisher(Float32, '/fleet/max_speed', LATCHED)   # panel speed cap
         self.pub.create_subscription(Float32, f'{p}/max_speed', cap_pub.publish, LATCHED, raw=True)
 

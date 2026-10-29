@@ -12,6 +12,12 @@ Panels:
   Splitter Ratio: 0.5
 - Class: fleet_rviz_tools/AutodrivePanel
   Name: Autodrive
+  MaxSpeed_nuc4: 4.0
+- Class: fleet_rviz_tools/BatteryPanel
+  Name: Battery
+  Cells_nuc1: 4
+  Cells_nuc4: 4
+  Cells_nuc5: 4
 Visualization Manager:
   Class: ''
   Displays:
@@ -411,6 +417,33 @@ Visualization Manager:
       Reliability Policy: Reliable
       Value: /nuc5/image/compressed
     Value: true
+  - Class: rviz_default_plugins/Path
+    Enabled: true
+    Name: nuc4 global IQP
+    Alpha: 1
+    Buffer Length: 1
+    Color: 255; 220; 0
+    Head Diameter: 0.3
+    Head Length: 0.2
+    Length: 0.3
+    Line Style: Billboards
+    Line Width: 0.04
+    Offset:
+      X: 0
+      Y: 0
+      Z: 0
+    Pose Color: 50; 150; 255
+    Pose Style: None
+    Radius: 0.03
+    Shaft Diameter: 0.1
+    Shaft Length: 0.1
+    Value: true
+    Topic:
+      Depth: 1
+      Durability Policy: Transient Local
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /nuc4/global_path
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48

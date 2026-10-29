@@ -43,7 +43,7 @@ public:
         send(car, on);
       });
       auto * slider = new QSlider(Qt::Horizontal);
-      slider->setRange(10, 80);                         // 0.1 m/s steps, 1.0 .. 8.0
+      slider->setRange(10, car == "nuc4" ? 100 : 80);                         // 0.1 m/s steps, 1.0 .. 8.0
       slider->setValue(20);
       auto * value = new QLabel("2.0 m/s");
       value->setMinimumWidth(56);
