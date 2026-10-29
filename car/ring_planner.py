@@ -288,14 +288,15 @@ def speed_profile(path, cap, a_lat, a_acc, a_dec, v_floor=0.5, stop_at=None, spa
     return v
 
 
-def predict(x, y, yaw, v, steer, dt, wheelbase, steps=5):
-    """Kinematic-bicycle pose `dt` s ahead at speed v and steering `steer`: where the car will be
-    when a command sent now takes effect (pose latency + actuation lag)."""
+def predict(x, y, yaw, v, yaw_rate, dt, steps=5):
+    """Pose `dt` s ahead at constant speed v and yaw rate: where the car will be when a command
+    sent now takes effect (actuation lag). Use the measured yaw rate (gyro): predicting with the
+    last steering command feeds every command back into the next one and the steering chatters."""
     h = dt / steps
     for _ in range(steps):
         x += v * math.cos(yaw) * h
         y += v * math.sin(yaw) * h
-        yaw += v / wheelbase * math.tan(steer) * h
+        yaw += yaw_rate * h
     return x, y, yaw
 
 
@@ -325,7 +326,8 @@ def main():
     from ackermann_msgs.msg import AckermannDriveStamped
     from geometry_msgs.msg import PoseStamped
     from nav_msgs.msg import Odometry, Path
-    from rclpy.qos import QoSProfile, DurabilityPolicy
+    from rclpy.qos import QoSProfile, DurabilityPolicy, qos_profile_sensor_data
+    from sensor_msgs.msg import Imu
     from std_msgs.msg import Float32
     from controller.geofence import TrackField, resolve_map_yaml
 
@@ -359,6 +361,7 @@ def main():
 
             self.pose = None                 # (x, y, yaw), monotonic time
             self.v_meas = 0.0                # measured speed from /car_state/odom [m/s]
+            self.yaw_rate = (0.0, 0.0)       # gyro z [rad/s] (lidar IMU, mounted level with base_link), monotonic time
             self.opp = {}                    # name -> ((x, y, yaw, v), monotonic time)
             self.path = None
             self.profile = None              # speed at every path point (speed_profile)
@@ -367,6 +370,7 @@ def main():
             self.last_steer = 0.0
             self.last_speed = 0.0
             self.create_subscription(Odometry, '/car_state/odom', self._odom_cb, 10)
+            self.create_subscription(Imu, P('imu_topic', '/livox/imu'), self._imu_cb, qos_profile_sensor_data)
             for o in others:
                 if o != me:
                     self.create_subscription(Odometry, f'/fleet/{o}/odom', lambda m, o=o: self._opp_cb(o, m), 10)
@@ -385,6 +389,10 @@ def main():
             p = m.pose.pose
             self.pose = ((p.position.x, p.position.y, yaw_of(p.orientation)), time.monotonic())
             self.v_meas = math.hypot(m.twist.twist.linear.x, m.twist.twist.linear.y)
+
+        def _imu_cb(self, m):
+            w, _ = self.yaw_rate
+            self.yaw_rate = (0.7 * w + 0.3 * m.angular_velocity.z, time.monotonic())   # ~15 ms low-pass at 200 Hz
 
         def _opp_cb(self, name, m):
             p = m.pose.pose
@@ -435,7 +443,10 @@ def main():
             if pose is not None and self.path is not None and len(self.path) > 2:
                 path, profile = self.path, self.profile
                 # servo + motor lag: steer from the pose the car reaches by the time this command acts
-                pose = predict(*pose, self.v_meas, self.last_steer, self.steer_delay, self.wheelbase)
+                w, tw = self.yaw_rate
+                if time.monotonic() - tw > 0.1:                  # no IMU: fall back to the commanded steering
+                    w = self.v_meas / self.wheelbase * math.tan(self.last_steer)
+                pose = predict(*pose, self.v_meas, w, self.steer_delay)
                 near = nearest(path, pose[0], pose[1])
                 # planned speed a little ahead (the car reacts late), never above the current panel cap
                 j = min(len(path) - 1, near + int(self.v_meas * self.preview / 0.05))
