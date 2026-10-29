@@ -340,7 +340,7 @@ def main():
             self.max_steer = float(P('max_steer', 0.4))
             self.wheelbase = float(P('wheelbase', 0.33))
             self.lookahead_gain = float(P('lookahead_gain', 0.35))  # lookahead = gain*v + 0.3, clamped 0.6..2.5 m
-            self.steer_delay = float(P('steer_delay', 0.25))     # s: pure pursuit steers from where the car will be then
+            self.steer_delay = float(P('steer_delay', 0.2))      # s: pure pursuit steers from where the car will be then
             self.keep_path = float(P('keep_path', 0.5))           # s to keep the last path when a replan fails
             self.pose_timeout = float(P('pose_timeout', 0.3))
             self.opp_timeout = float(P('opp_timeout', 0.5))
