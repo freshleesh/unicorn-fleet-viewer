@@ -269,10 +269,13 @@ def curvature(path, span=0.8, spacing=0.05):
 
 
 def speed_profile(path, cap, a_lat, a_acc, a_dec, v_floor=0.5, stop_at=None, spacing=0.05,
-                  span=0.8, smooth_len=0.5):
+                  span=0.8, smooth_len=0.5, grip=None):
     """Speed [m/s] at every path point: lateral-acceleration limit from the curvature, capped at `cap`,
     then a forward pass (accelerate at most a_acc out of corners) and a backward pass (brake at most
-    a_dec into them, and to 0 at arc length `stop_at` when the road ahead is blocked)."""
+    a_dec into them, and to 0 at arc length `stop_at` when the road ahead is blocked).
+    With `grip` [m/s^2] the tyres are a friction circle: the lateral acceleration a point already
+    uses (v^2 * kappa) leaves only sqrt(1 - (lat/grip)^2) of a_acc / a_dec, so the car does not
+    speed up while still turning hard out of a corner, nor brake hard while turning into one."""
     kappa = np.abs(curvature(path, span, spacing))
     if smooth_len > 0 and len(kappa) > 2:              # average out what is left of the grid staircase
         k = max(1, int(round(smooth_len / spacing)))
@@ -281,10 +284,15 @@ def speed_profile(path, cap, a_lat, a_acc, a_dec, v_floor=0.5, stop_at=None, spa
     v = np.maximum(v, min(v_floor, cap))           # the stencil never sees a real 0-radius corner
     if stop_at is not None:
         v[int(max(0.0, stop_at) / spacing):] = 0.0
+    def left(vv, k):                                   # share of the longitudinal limit the tyres have left
+        if not grip:
+            return 1.0
+        return math.sqrt(max(0.0, 1.0 - min(1.0, vv * vv * k / grip) ** 2))
+
     for i in range(1, len(v)):
-        v[i] = min(v[i], math.sqrt(v[i - 1] ** 2 + 2.0 * a_acc * spacing))
+        v[i] = min(v[i], math.sqrt(v[i - 1] ** 2 + 2.0 * a_acc * left(v[i - 1], kappa[i - 1]) * spacing))
     for i in range(len(v) - 2, -1, -1):
-        v[i] = min(v[i], math.sqrt(v[i + 1] ** 2 + 2.0 * a_dec * spacing))
+        v[i] = min(v[i], math.sqrt(v[i + 1] ** 2 + 2.0 * a_dec * left(v[i + 1], kappa[i + 1]) * spacing))
     return v
 
 
@@ -351,6 +359,7 @@ def main():
             self.a_lat = float(P('a_lat', 3.3))              # max lateral acceleration in corners [m/s^2] (car 1 grips ~3.6 on the expo floor)
             self.a_acc = float(P('a_acc', 3.0))              # max acceleration out of corners [m/s^2]
             self.a_dec = float(P('a_dec', 4.0))              # max braking into corners / behind a car [m/s^2]
+            self.grip = float(P('grip', 3.6))                # tyre friction circle [m/s^2] (car 1, expo floor); 0 = off
             self.preview = float(P('speed_preview', 0.25))   # s: command the speed this far ahead (actuation lag)
             others = P('opponents', ['nuc1', 'nuc4', 'nuc5'])
             me = os.uname().nodename
@@ -420,7 +429,8 @@ def main():
                 return
             self.block = self.planner.blocked_ahead(path, opps)
             stop_at = None if self.block is None else self.block - self.follow_gap
-            self.profile = speed_profile(path, self.speed, self.a_lat, self.a_acc, self.a_dec, stop_at=stop_at)
+            self.profile = speed_profile(path, self.speed, self.a_lat, self.a_acc, self.a_dec, stop_at=stop_at,
+                                         grip=self.grip)
             self.path, self.path_time = path, t0
             if dt > 0.15:
                 self.get_logger().warn(f'slow replan {dt*1000:.0f} ms', throttle_duration_sec=5.0)
@@ -448,9 +458,10 @@ def main():
                     w = self.v_meas / self.wheelbase * math.tan(self.last_steer)
                 pose = predict(*pose, self.v_meas, w, self.steer_delay)
                 near = nearest(path, pose[0], pose[1])
-                # planned speed a little ahead (the car reacts late), never above the current panel cap
+                # the motor reacts late: brake for the speed a little ahead, but never speed up before
+                # the car itself gets to the faster part (that pushed it wide out of corners)
                 j = min(len(path) - 1, near + int(self.v_meas * self.preview / 0.05))
-                v = min(float(profile[j]), self.speed)
+                v = min(float(profile[j]), float(profile[near]), self.speed)
                 # each replan brings a slightly different profile: rate-limit the command so it does not
                 # jitter, and ramp up from the measured speed (standstill, or after a hand-over)
                 dt = 0.02
