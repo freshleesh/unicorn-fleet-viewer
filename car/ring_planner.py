@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Ring planner: drive round a closed track forever, avoiding the other cars.
 
-Every replan (5 Hz) runs A* from the car to the track centreline point one third of a
+Every replan (10 Hz, on its own thread) runs A* from the car to the track centreline point one third of a
 lap ahead. The track is one-way: a move may not point against the local track direction,
 so the search can never pick "turn round and go the other way" when the road ahead is
 busy. Cell cost = 1 + wall term + opponent term + "stay near the previous path" term.
@@ -9,6 +9,7 @@ Pure pursuit follows the latest path at 50 Hz. A speed planner runs on every new
 cap from the autodrive panel is the top speed, each point is limited by its curvature
 (lateral acceleration a_lat), then accelerating out of corners is limited to a_acc and braking
 into them (or to a stop behind a car that blocks the whole road) to a_dec.
+The A* cell path is smoothed as an elastic band (less bending, kept 0.35 m off the walls).
 Each replan keeps the start of the previous path (the next ~0.4 s of driving) and runs A* from
 its end, so near-equal alternatives cannot flip right in front of the car. Pure pursuit steers
 from the pose predicted `steer_delay` s ahead (servo/motor lag), otherwise it oscillates at speed.
@@ -70,11 +71,13 @@ class Grid:
 class Planner:
     def __init__(self, grid, r_hard=0.10, w_wall=3.0, k_wall=0.25, hard_cost=50.0,
                  opp_half_len=0.43, opp_half_wid=0.30, opp_hard=200.0, opp_soft=5.0, k_opp=0.6,
-                 w_prev=0.3, d_prev=0.3, horizon=1 / 3, back_tol=0.3, start_out=0.2):
+                 w_prev=0.3, d_prev=0.3, horizon=1 / 3, back_tol=0.3, start_out=0.2,
+                 relax_iters=60, relax_clear=0.35):
         self.g = grid
         self.p = dict(opp_half_len=opp_half_len, opp_half_wid=opp_half_wid, opp_hard=opp_hard,
                       opp_soft=opp_soft, k_opp=k_opp, w_prev=w_prev, d_prev=d_prev,
-                      horizon=horizon, back_tol=back_tol, start_out=start_out)
+                      horizon=horizon, back_tol=back_tol, start_out=start_out,
+                      relax_iters=relax_iters, relax_clear=relax_clear)
         self.dir = None                    # +1 / -1: driving along / against the centreline order
         d_in = -grid.sdf
         wall = np.where(d_in < r_hard, hard_cost, w_wall * np.exp(-(d_in - r_hard) / k_wall))
@@ -120,7 +123,11 @@ class Planner:
         if not g.inside(start) or g.sdf[start] > self.p['start_out']:
             return None                    # off the track: wrong localization or really out -> give up
         cost = self.base + self.opponent_cost(opponents) + self.prev_cost()
-        cost[start] = min(cost[start], self.base.max()) if np.isinf(cost[start]) else cost[start]
+        # a car parked against the wall can sit just outside the track mask: let it out through the
+        # cells within 0.4 m of it that are less than start_out outside, in any direction
+        escape = ((g.cx - x) ** 2 + (g.cy - y) ** 2 < 0.4 ** 2) & (g.sdf <= self.p['start_out'])
+        cost = np.where(escape & np.isinf(cost), self.base[np.isfinite(self.base)].max(), cost)
+        escape_l = escape.tolist()
         n = len(g.centre)
         i0 = int(g.tree.query((x, y))[1])
         sgn = self.direction(i0, yaw)
@@ -151,7 +158,7 @@ class Planner:
                 if cc == math.inf:
                     continue
                 tx, ty = tan[r][c]         # one-way: no move against the track direction
-                if (dc * tx - dr * ty) < back * step:     # col = +x, row = -y
+                if (dc * tx - dr * ty) < back * step and not escape_l[r][c]:     # col = +x, row = -y
                     continue
                 if dr and dc and (cost_l[r][nc] == math.inf or cost_l[nr][c] == math.inf):
                     continue                       # no corner cutting through walls
@@ -173,7 +180,29 @@ class Planner:
         self.prev_mask = mask
         pts = np.array([g.world(rc) for rc in cells])
         pts[0] = (x, y)
-        return smooth(pts)
+        return self.relax(smooth(pts))
+
+    def relax(self, pts, iters=None, step=0.1):
+        """Elastic-band smoothing of the A* path: each point is pulled toward the midpoint of its
+        neighbours (less bending) and weakly back toward where A* put it; a point that comes closer
+        than `clear` to a wall is pushed back toward the A* point. Ends stay where they are.
+        Works on `step` m spacing, so the smoothing reaches about a metre along the path."""
+        iters = self.p['relax_iters'] if iters is None else iters
+        if iters <= 0 or len(pts) < 5:
+            return pts
+        g = self.g
+        s = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(pts, axis=0).T))])
+        t = np.linspace(0.0, s[-1], max(3, int(s[-1] / step) + 1))
+        orig = np.stack([np.interp(t, s, pts[:, 0]), np.interp(t, s, pts[:, 1])], 1)
+        p = orig.copy()
+        clear, w_s, w_d = self.p['relax_clear'], 0.4, 0.03
+        for _ in range(iters):
+            p[1:-1] += w_s * (p[:-2] + p[2:] - 2.0 * p[1:-1]) + w_d * (orig[1:-1] - p[1:-1])
+            rows = np.clip(((g.top - p[:, 1]) / g.res).astype(int), 0, g.h - 1)
+            cols = np.clip(((p[:, 0] - g.ox) / g.res).astype(int), 0, g.w - 1)
+            near_wall = g.sdf[rows, cols] > -clear
+            p[near_wall] += 0.5 * (orig[near_wall] - p[near_wall])
+        return smooth(p, window=1)
 
     def replan(self, x, y, yaw, v, opponents=(), prev=None, keep_time=0.4, keep_min=0.5, max_off=0.3):
         """plan() with the start of the previous path kept: the part the car drives in the next
@@ -335,6 +364,8 @@ def pure_pursuit(path, x, y, yaw, lookahead, wheelbase, near=None):
 def main():
     import rclpy
     from rclpy.node import Node
+    from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+    from rclpy.executors import MultiThreadedExecutor
     from ackermann_msgs.msg import AckermannDriveStamped
     from geometry_msgs.msg import PoseStamped
     from nav_msgs.msg import Odometry, Path
@@ -376,10 +407,10 @@ def main():
             self.v_meas = 0.0                # measured speed from /car_state/odom [m/s]
             self.yaw_rate = (0.0, 0.0)       # gyro z [rad/s] (lidar IMU, mounted level with base_link), monotonic time
             self.opp = {}                    # name -> ((x, y, yaw, v), monotonic time)
-            self.path = None
-            self.profile = None              # speed at every path point (speed_profile)
+            # (path, speed profile, blocked-at arc length): replaced as one tuple by the planning thread,
+            # read once per cycle by the control thread, so the two never see halves of different plans
+            self.plan = None
             self.path_time = 0.0
-            self.block = None
             self.last_steer = 0.0
             self.last_speed = 0.0
             self.create_subscription(Odometry, '/car_state/odom', self._odom_cb, 10)
@@ -391,8 +422,10 @@ def main():
                                      QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
             self.cmd_pub = self.create_publisher(AckermannDriveStamped, '/vesc/high_level/ackermann_cmd', 10)
             self.path_pub = self.create_publisher(Path, '/planner/path', 1)
-            self.create_timer(0.2, self._replan)
-            self.create_timer(0.02, self._control)
+            # A* takes 40-80 ms: plan on its own thread so the 50 Hz steering loop is never held up
+            rate = float(P('replan_hz', 10.0))
+            self.create_timer(1.0 / rate, self._replan, callback_group=MutuallyExclusiveCallbackGroup())
+            self.create_timer(0.02, self._control, callback_group=MutuallyExclusiveCallbackGroup())
 
         def _speed_cb(self, m):
             self.speed = float(m.data)
@@ -421,21 +454,22 @@ def main():
         def _replan(self):
             pose, opps = self._fresh()
             if pose is None:
-                self.path = None
+                self.plan = None
                 return
             t0 = time.monotonic()
-            path = self.planner.replan(*pose, self.v_meas, opps, prev=self.path)
+            prev = self.plan[0] if self.plan else None
+            path = self.planner.replan(*pose, self.v_meas, opps, prev=prev)
             dt = time.monotonic() - t0
             if path is None:
                 self.get_logger().warn('no path (car off the track?)', throttle_duration_sec=2.0)
                 if t0 - self.path_time > self.keep_path:
-                    self.path = None           # -> speed 0
+                    self.plan = None           # -> speed 0
                 return
-            self.block = self.planner.blocked_ahead(path, opps)
-            stop_at = None if self.block is None else self.block - self.follow_gap
-            self.profile = speed_profile(path, self.speed, self.a_lat, self.a_acc, self.a_dec, stop_at=stop_at,
-                                         grip=self.grip)
-            self.path, self.path_time = path, t0
+            block = self.planner.blocked_ahead(path, opps)
+            stop_at = None if block is None else block - self.follow_gap
+            profile = speed_profile(path, self.speed, self.a_lat, self.a_acc, self.a_dec, stop_at=stop_at,
+                                    grip=self.grip)
+            self.plan, self.path_time = (path, profile, block), t0
             if dt > 0.15:
                 self.get_logger().warn(f'slow replan {dt*1000:.0f} ms', throttle_duration_sec=5.0)
             if path is not None:
@@ -454,8 +488,9 @@ def main():
             cmd = AckermannDriveStamped()
             cmd.header.stamp = self.get_clock().now().to_msg()
             pose, _ = self._fresh()
-            if pose is not None and self.path is not None and len(self.path) > 2:
-                path, profile = self.path, self.profile
+            plan = self.plan
+            if pose is not None and plan is not None and len(plan[0]) > 2:
+                path, profile, block = plan
                 # servo + motor lag: steer from the pose the car reaches by the time this command acts
                 w, tw = self.yaw_rate
                 if time.monotonic() - tw > 0.1:                  # no IMU: fall back to the commanded steering
@@ -474,17 +509,20 @@ def main():
                 lookahead = min(2.5, max(0.6, self.lookahead_gain * v + 0.3))
                 steer = pure_pursuit(path, *pose, lookahead, self.wheelbase, near)
                 self.last_steer = max(-self.max_steer, min(self.max_steer, steer))
-                if self.block is not None:                    # no room to pass: follow
-                    v = min(v, max(0.0, 1.5 * (self.block - self.follow_gap)))
+                if block is not None:                         # no room to pass: follow
+                    v = min(v, max(0.0, 1.5 * (block - self.follow_gap)))
                 cmd.drive.speed = v
             self.last_speed = cmd.drive.speed               # 0 when stopped (no pose / no path)
             cmd.drive.steering_angle = self.last_steer      # stopping keeps the last steering
             self.cmd_pub.publish(cmd)
 
+    sys.setswitchinterval(0.001)      # A* is pure Python: let the control thread in every 1 ms, not 5 ms
     rclpy.init()
     node = RingPlanner()
     try:
-        rclpy.spin(node)
+        ex = MultiThreadedExecutor(num_threads=3)
+        ex.add_node(node)
+        ex.spin()
     except KeyboardInterrupt:
         pass
 
