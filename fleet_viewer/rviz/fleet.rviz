@@ -105,6 +105,10 @@ Visualization Manager:
     Name: start line
     Namespaces:
       start_line: true
+      start_line_shared: true
+      start_line_nuc1: true
+      start_line_nuc4: true
+      start_line_nuc5: true
     Topic:
       Depth: 1
       Durability Policy: Transient Local
