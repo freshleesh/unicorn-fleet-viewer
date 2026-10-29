@@ -358,6 +358,52 @@ def pure_pursuit(path, x, y, yaw, lookahead, wheelbase, near=None):
     return math.atan2(2.0 * wheelbase * math.sin(alpha), ld)
 
 
+def stanley(path, x, y, yaw, v, wheelbase, kappa, k_e=1.5, k_soft=1.0, k_h=1.0):
+    """Steering from the front axle's errors to the path plus the path's own curvature:
+    atan(L * kappa) is what the corner needs (feedforward), k_h * heading error and
+    atan(k_e * lateral error / (k_soft + v)) pull the car back onto the line (Stanley).
+    Unlike pure pursuit it does not aim at a point ahead, so it does not cut corners.
+    Returns (steering angle, lateral error of the front axle, + = left of the path)."""
+    fx, fy = x + wheelbase * math.cos(yaw), y + wheelbase * math.sin(yaw)
+    i = min(max(nearest(path, fx, fy), 1), len(path) - 2)
+    psi = math.atan2(path[i + 1, 1] - path[i - 1, 1], path[i + 1, 0] - path[i - 1, 0])
+    e = -(fx - path[i, 0]) * math.sin(psi) + (fy - path[i, 1]) * math.cos(psi)
+    he = (psi - yaw + math.pi) % (2.0 * math.pi) - math.pi
+    return math.atan(wheelbase * kappa[i]) + k_h * he + math.atan2(-k_e * e, k_soft + v), e
+
+
+def fixed_loop(grid, spacing=0.05, step=0.1, iters=400, clear=0.35):
+    """Test reference: the track centreline as a closed loop, elastic-band smoothed (as Planner.relax,
+    but closed) so the car can actually drive it (the raw skeleton bends tighter than the steering
+    allows), resampled every `spacing` m. The same line every lap, so tracking error is the
+    controller's alone, not the planner's."""
+    c = grid.centre
+    closed = np.vstack([c, c[:1]])
+    s = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(closed, axis=0).T))])
+    t = np.arange(0.0, s[-1], step)
+    orig = np.stack([np.interp(t, s, closed[:, 0]), np.interp(t, s, closed[:, 1])], 1)
+    p = orig.copy()
+    for _ in range(iters):
+        p += 0.4 * (np.roll(p, 1, 0) + np.roll(p, -1, 0) - 2.0 * p) + 0.01 * (orig - p)
+        rows = np.clip(((grid.top - p[:, 1]) / grid.res).astype(int), 0, grid.h - 1)
+        cols = np.clip(((p[:, 0] - grid.ox) / grid.res).astype(int), 0, grid.w - 1)
+        near_wall = grid.sdf[rows, cols] > -clear
+        p[near_wall] += 0.5 * (orig[near_wall] - p[near_wall])
+    closed = np.vstack([p, p[:1]])
+    s = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(closed, axis=0).T))])
+    t = np.arange(0.0, s[-1], spacing)
+    return np.stack([np.interp(t, s, closed[:, 0]), np.interp(t, s, closed[:, 1])], 1)
+
+
+def loop_slice(loop, x, y, yaw, length, spacing=0.05):
+    """`length` m of the loop from the point nearest the car, in the direction the car faces."""
+    n = len(loop)
+    i = int(np.argmin(np.hypot(loop[:, 0] - x, loop[:, 1] - y)))
+    tx, ty = loop[(i + 1) % n] - loop[i - 1]
+    sgn = 1 if tx * math.cos(yaw) + ty * math.sin(yaw) >= 0 else -1
+    return loop[(i + sgn * np.arange(int(length / spacing))) % n]
+
+
 # ---------------------------------------------------------------- ROS node
 
 
@@ -396,12 +442,18 @@ def main():
             self.a_dec = float(P('a_dec', 4.0))              # max braking into corners / behind a car [m/s^2]
             self.grip = float(P('grip', 3.6))                # tyre friction circle [m/s^2] (car 1, expo floor); 0 = off
             self.preview = float(P('speed_preview', 0.25))   # s: command the speed this far ahead (actuation lag)
+            self.controller = P('controller', 'pp')            # 'pp' (pure pursuit) or 'stanley' (feedforward + Stanley)
+            self.k_e = float(P('stanley_k', 2.5))
+            self.k_h = float(P('stanley_k_heading', 1.0))
+            self.fixed = bool(P('fixed_path', False))          # test: follow the centreline, no A*
             others = P('opponents', ['nuc1', 'nuc4', 'nuc5'])
             me = os.uname().nodename
             path = resolve_map_yaml(P('map', 'nuc4_map_1029_1905'))
             self.planner = Planner(Grid(TrackField(path), float(P('plan_res', 0.10))))
+            self.loop = fixed_loop(self.planner.g) if self.fixed else None
             self.get_logger().info(f'map {path}, grid {self.planner.g.w}x{self.planner.g.h} @ {self.planner.g.res} m, '
-                                   f'speed {self.speed} m/s')
+                                   f'speed {self.speed} m/s, controller {self.controller}'
+                                   + (', FIXED centreline path (test)' if self.fixed else ''))
 
             self.pose = None                 # (x, y, yaw), monotonic time
             self.v_meas = 0.0                # measured speed from /car_state/odom [m/s]
@@ -458,7 +510,10 @@ def main():
                 return
             t0 = time.monotonic()
             prev = self.plan[0] if self.plan else None
-            path = self.planner.replan(*pose, self.v_meas, opps, prev=prev)
+            if self.loop is not None:
+                path = loop_slice(self.loop, pose[0], pose[1], pose[2], len(self.loop) * 0.05 / 3)
+            else:
+                path = self.planner.replan(*pose, self.v_meas, opps, prev=prev)
             dt = time.monotonic() - t0
             if path is None:
                 self.get_logger().warn('no path (car off the track?)', throttle_duration_sec=2.0)
@@ -469,7 +524,7 @@ def main():
             stop_at = None if block is None else block - self.follow_gap
             profile = speed_profile(path, self.speed, self.a_lat, self.a_acc, self.a_dec, stop_at=stop_at,
                                     grip=self.grip)
-            self.plan, self.path_time = (path, profile, block), t0
+            self.plan, self.path_time = (path, profile, block, curvature(path, span=0.5)), t0
             if dt > 0.15:
                 self.get_logger().warn(f'slow replan {dt*1000:.0f} ms', throttle_duration_sec=5.0)
             if path is not None:
@@ -490,7 +545,7 @@ def main():
             pose, _ = self._fresh()
             plan = self.plan
             if pose is not None and plan is not None and len(plan[0]) > 2:
-                path, profile, block = plan
+                path, profile, block, kappa = plan
                 # servo + motor lag: steer from the pose the car reaches by the time this command acts
                 w, tw = self.yaw_rate
                 if time.monotonic() - tw > 0.1:                  # no IMU: fall back to the commanded steering
@@ -506,8 +561,11 @@ def main():
                 dt = 0.02
                 v = min(v, self.last_speed + self.a_acc * dt, self.v_meas + self.a_acc * 0.5)
                 v = max(v, self.last_speed - 2.0 * self.a_dec * dt)
-                lookahead = min(2.5, max(0.6, self.lookahead_gain * v + 0.3))
-                steer = pure_pursuit(path, *pose, lookahead, self.wheelbase, near)
+                if self.controller == 'stanley':
+                    steer, _ = stanley(path, *pose, self.v_meas, self.wheelbase, kappa, self.k_e, k_h=self.k_h)
+                else:
+                    lookahead = min(2.5, max(0.6, self.lookahead_gain * v + 0.3))
+                    steer = pure_pursuit(path, *pose, lookahead, self.wheelbase, near)
                 self.last_steer = max(-self.max_steer, min(self.max_steer, steer))
                 if block is not None:                         # no room to pass: follow
                     v = min(v, max(0.0, 1.5 * (block - self.follow_gap)))
