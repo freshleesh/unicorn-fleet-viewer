@@ -26,14 +26,20 @@ def nodes(context):
              parameters=[{'yaml_filename': map_yaml}]),
         Node(package='nav2_lifecycle_manager', executable='lifecycle_manager', name='map_lifecycle',
              parameters=[{'node_names': ['map_server'], 'autostart': True, 'bond_timeout': 0.0}]),
-        Node(package='fleet_viewer', executable='lap_timer.py', name='lap_timer',
-             parameters=[{'map': map_yaml}]),
     ]
+    race = LaunchConfiguration('race').perform(context).strip('/')
+    remap = []
+    if race == 'race':          # this PC runs the race
+        out.append(Node(package='fleet_viewer', executable='lap_timer.py', name='lap_timer',
+                        parameters=[{'map': map_yaml}]))
+    else:                       # another PC's lap timer runs it: point every race topic of RViz there
+        names = ['state', 'command', 'marker', 'start_line'] + [f'{c}/start_line' for c in ('nuc1', 'nuc4', 'nuc5')]
+        remap = [(f'/race/{n}', f'/{race}/{n}') for n in names]
     if os.path.isfile(os.path.expanduser(pcd)):
         out.append(Node(package='fleet_viewer', executable='pcd_publisher.py', name='pcd_publisher',
                         arguments=[os.path.expanduser(pcd), '/map_cloud', 'map']))
     rviz = Node(package='rviz2', executable='rviz2', name='rviz',
-                arguments=['-d', LaunchConfiguration('rviz')])
+                arguments=['-d', LaunchConfiguration('rviz')], remappings=remap)
     out += [rviz, RegisterEventHandler(OnProcessExit(target_action=rviz,
                                                       on_exit=[EmitEvent(event=Shutdown(reason='RViz closed'))]))]
     return out
@@ -44,5 +50,8 @@ def generate_launch_description():
         DeclareLaunchArgument('map', default_value=DEFAULT_MAP, description='map_server yaml of the 2D track map'),
         DeclareLaunchArgument('pcd', default_value='', description='3D map (binary PCD); default: <map>.pcd'),
         DeclareLaunchArgument('rviz', default_value=os.path.join(SHARE, 'rviz', 'fleet.rviz')),
+        DeclareLaunchArgument('race', default_value='race',
+                              description="race topic namespace; anything but 'race' (e.g. racing) uses that "
+                                          'PC\'s lap timer and starts none here'),
         OpaqueFunction(function=nodes),
     ])

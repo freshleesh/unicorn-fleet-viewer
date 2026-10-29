@@ -5,12 +5,15 @@
 //   ON  = Joy with RB (button 5) pressed            -> mux hands over to the planner (autodrive)
 //   OFF = Joy with LB (button 4) pressed, sticks 0  -> mux switches to human drive at speed 0
 // Published on /<car>/joy (shared domain); fleet_relay forwards it to the car's /joy.
+// Every Autodrive panel also listens to /<car>/joy and /<car>/max_speed, so two RViz windows (or another PC)
+// show the same AUTO/OFF state and speed caps. A pad plugged into the car itself is not seen here.
 #include <map>
 
 #include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QSlider>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 #include "rclcpp/rclcpp.hpp"
@@ -57,6 +60,7 @@ public:
       grid->addWidget(value, row, 3);
       buttons_[car] = btn;
       sliders_[car] = slider;
+      values_[car] = value;
       ++row;
     }
     auto * all_on = new QPushButton("ALL AUTO");
@@ -83,6 +87,21 @@ public:
       cap_pubs_[car] = node_->create_publisher<std_msgs::msg::Float32>(
         "/" + car.toStdString() + "/max_speed", rclcpp::QoS(1).transient_local());
       sendCap(car, sliders_[car]->value() / 10.0);     // cars get the cap as soon as the panel is up
+      // follow what any other panel or pad on the fleet network sends
+      joy_subs_[car] = node_->create_subscription<sensor_msgs::msg::Joy>(
+        "/" + car.toStdString() + "/joy", 10, [this, car](sensor_msgs::msg::Joy::ConstSharedPtr m) {
+          if (m->buttons.size() < 6 || (m->buttons[4] == 0 && m->buttons[5] == 0)) {
+            return;
+          }
+          const bool on = m->buttons[5] != 0;            // RB = autodrive, LB = human drive
+          QMetaObject::invokeMethod(this, [this, car, on] { showAuto(car, on); }, Qt::QueuedConnection);
+        });
+      cap_subs_[car] = node_->create_subscription<std_msgs::msg::Float32>(
+        "/" + car.toStdString() + "/max_speed", rclcpp::QoS(1).transient_local(),
+        [this, car](std_msgs::msg::Float32::ConstSharedPtr m) {
+          const int v = static_cast<int>(m->data * 10.0f + 0.5f);
+          QMetaObject::invokeMethod(this, [this, car, v] { showCap(car, v); }, Qt::QueuedConnection);
+        });
     }
   }
 
@@ -106,6 +125,30 @@ public:
   }
 
 private:
+  // show a state sent elsewhere without sending it again
+  void showAuto(const QString & car, bool on)
+  {
+    QPushButton * btn = buttons_[car];
+    if (btn->isChecked() == on) {
+      return;
+    }
+    QSignalBlocker block(btn);
+    btn->setChecked(on);
+    btn->setText(on ? "AUTO" : "OFF");
+    btn->setStyleSheet(on ? "background-color:#2e7d32; color:white; font-weight:bold;" : "");
+  }
+
+  void showCap(const QString & car, int v)
+  {
+    QSlider * slider = sliders_[car];
+    if (slider->value() == v) {
+      return;
+    }
+    QSignalBlocker block(slider);
+    slider->setValue(v);
+    values_[car]->setText(QString::number(slider->value() / 10.0, 'f', 1) + " m/s");
+  }
+
   void setAll(bool on)
   {
     for (auto & [car, btn] : buttons_) {
@@ -148,6 +191,9 @@ private:
     {"nuc1", "#ff6419"}, {"nuc4", "#3296ff"}, {"nuc5", "#4bff4b"}};
   std::map<QString, QPushButton *> buttons_;
   std::map<QString, QSlider *> sliders_;
+  std::map<QString, QLabel *> values_;
+  std::map<QString, rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr> joy_subs_;
+  std::map<QString, rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr> cap_subs_;
   std::map<QString, rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr> cap_pubs_;
   std::map<QString, rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr> pubs_;
   rclcpp::Node::SharedPtr node_;

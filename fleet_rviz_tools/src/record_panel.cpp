@@ -20,8 +20,11 @@
 #include <QVBoxLayout>
 
 #include "pluginlib/class_list_macros.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "rviz_common/config.hpp"
+#include "rviz_common/display_context.hpp"
 #include "rviz_common/panel.hpp"
+#include "rviz_common/ros_integration/ros_node_abstraction_iface.hpp"
 
 namespace fleet_rviz_tools
 {
@@ -72,6 +75,14 @@ public:
 
   ~RecordPanel() override { stop(); }
 
+  void onInitialize() override
+  {
+    // the race state as this RViz sees it (view_fleet race:=racing remaps /race/* to another PC's timer)
+    auto node = getDisplayContext()->getRosNodeAbstraction().lock()->get_raw_node();
+    race_state_ = QString::fromStdString(
+      node->get_node_topics_interface()->resolve_topic_name("/race/state"));
+  }
+
   void save(rviz_common::Config config) const override
   {
     rviz_common::Panel::save(config);
@@ -108,7 +119,7 @@ private:
     for (int i = 2; QFileInfo::exists(out_); ++i) {          // ros2 bag refuses an existing folder
       out_ = QDir(dir).filePath(name + "_" + QString::number(i));
     }
-    QStringList args{"bag", "record", "-s", "mcap", "--max-bag-duration", "600", "-o", out_, "/race/state"};
+    QStringList args{"bag", "record", "-s", "mcap", "--max-bag-duration", "600", "-o", out_, race_state_};
     for (const char * car : {"nuc1", "nuc4", "nuc5"}) {
       for (const char * t : {"odom", "drive", "image/compressed"}) {
         args << QString("/%1/%2").arg(car, t);
@@ -197,6 +208,7 @@ private:
   QTimer * timer_;
   QProcess * proc_ = nullptr;
   QString out_;
+  QString race_state_ = "/race/state";
   QString last_line_;
   QDateTime started_;
   bool stopping_ = false;
