@@ -346,7 +346,7 @@ def main():
             self.opp_timeout = float(P('opp_timeout', 0.5))
             self.follow_gap = float(P('follow_gap', 0.5))      # stop this far before a blocking car [m]
             # speed planner: the panel cap is the top speed, corners and blocking cars slow the car down
-            self.a_lat = float(P('a_lat', 4.0))              # max lateral acceleration in corners [m/s^2]
+            self.a_lat = float(P('a_lat', 3.0))              # max lateral acceleration in corners [m/s^2] (car 1 grips ~3.6 on the expo floor)
             self.a_acc = float(P('a_acc', 3.0))              # max acceleration out of corners [m/s^2]
             self.a_dec = float(P('a_dec', 4.0))              # max braking into corners / behind a car [m/s^2]
             self.preview = float(P('speed_preview', 0.25))   # s: command the speed this far ahead (actuation lag)
