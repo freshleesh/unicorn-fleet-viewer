@@ -19,6 +19,11 @@
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-pyqt5</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
+  <exec_depend>python3-skimage</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>rmw_cyclonedds_cpp</exec_depend>
   <export><build_type>ament_cmake</build_type></export>
 </package>

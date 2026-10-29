@@ -1,5 +1,5 @@
 """Driver screen for one car: left half a chase view behind the car (track, walls, every car),
-right half the car's camera. Self-contained: serves its own copy of the maps and its own TF
+right half the race HUD (position, lap, lap time) over the car's camera. Self-contained: serves its own copy of the maps and its own TF
 (/driver_<car>/...), so two driver screens and the main view can run on any PCs at once.
 Closing RViz shuts everything down.
 
@@ -22,24 +22,30 @@ SHARE = get_package_share_directory('fleet_viewer')
 DEFAULT_MAP = os.path.join(SHARE, 'maps', 'run_1016_1436', 'run_1016_1436.yaml')
 PATH_COLOR = {'nuc1': '255; 100; 25', 'nuc4': '50; 150; 255', 'nuc5': '75; 255; 75'}
 
-# QMainWindow state with the camera dock on the right, `width` px wide (made with an offscreen Qt
-# window, so it fits whatever width the screen has). Without PyQt5 the camera dock lands on the left.
+# QMainWindow state: right half = race HUD (top, `hud` px high) over the camera dock (made with an
+# offscreen Qt window, so it fits whatever size the screen has). Without PyQt5 RViz places the docks.
 STATE_SCRIPT = r'''
 import sys
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QDockWidget, QWidget
+hud_name, cam_name, width, height, hud = sys.argv[1], sys.argv[2], *map(int, sys.argv[3:6])
 app = QApplication(['state', '-platform', 'offscreen'])
-w = QMainWindow(); w.setCentralWidget(QWidget()); w.resize(int(sys.argv[2]), int(sys.argv[3]))
-d = QDockWidget(sys.argv[1]); d.setObjectName(sys.argv[1]); d.setWidget(QWidget())
-w.addDockWidget(Qt.RightDockWidgetArea, d); w.show(); app.processEvents()
-w.resizeDocks([d], [int(sys.argv[2]) // 2], Qt.Horizontal); app.processEvents()
+w = QMainWindow(); w.setCentralWidget(QWidget()); w.resize(width, height)
+docks = []
+for name in (hud_name, cam_name):
+    d = QDockWidget(name); d.setObjectName(name); d.setWidget(QWidget()); docks.append(d)
+w.addDockWidget(Qt.RightDockWidgetArea, docks[0])
+w.splitDockWidget(docks[0], docks[1], Qt.Vertical)
+w.show(); app.processEvents()
+w.resizeDocks(docks[:1], [width // 2], Qt.Horizontal)
+w.resizeDocks(docks, [hud, height - hud], Qt.Vertical); app.processEvents()
 print(bytes(w.saveState().toHex()).decode())
 '''
 
 
-def window_state(dock, width, height):
+def window_state(hud, cam, width, height, hud_height=300):
     try:
-        out = subprocess.run([sys.executable, '-c', STATE_SCRIPT, dock, str(width), str(height)],
+        out = subprocess.run([sys.executable, '-c', STATE_SCRIPT, hud, cam, str(width), str(height), str(hud_height)],
                              capture_output=True, text=True, timeout=20)
         return out.stdout.strip() if out.returncode == 0 else ''
     except (OSError, subprocess.TimeoutExpired):
@@ -56,7 +62,7 @@ def nodes(context):
     pcd = os.path.expanduser(arg('pcd') or os.path.splitext(map_yaml)[0] + '.pcd')
     width, height = int(arg('width')), int(arg('height'))
 
-    state = window_state(f'{car} camera', width, height)
+    state = window_state('race', f'{car} camera', width, height)
     cfg = open(os.path.join(SHARE, 'rviz', 'driver.rviz')).read()
     cfg = cfg.replace('@CAR@', car).replace('@PATH_COLOR@', PATH_COLOR[car])
     cfg = cfg.replace('@WINDOW_STATE@', state) if state else cfg.replace('  QMainWindow State: @WINDOW_STATE@\n', '')

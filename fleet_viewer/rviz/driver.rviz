@@ -1,6 +1,9 @@
 # Driver screen template: driver_view.launch.py fills in the @...@ fields.
 # Left half: chase view behind @CAR@ (frame from odom_tf.py), right half: @CAR@'s camera.
-Panels: []
+Panels:
+- Class: fleet_rviz_tools/RaceHud
+  Name: race
+  Car: @CAR@
 Visualization Manager:
   Class: ''
   Displays:
@@ -54,6 +57,17 @@ Visualization Manager:
       Max Value: 2
       Min Value: -0.5
       Value: true
+  - Class: rviz_default_plugins/MarkerArray
+    Enabled: true
+    Name: start line
+    Namespaces: {}
+    Topic:
+      Depth: 1
+      Durability Policy: Transient Local
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /race/marker
+    Value: true
   - Class: rviz_default_plugins/MarkerArray
     Enabled: true
     Name: nuc1 car
@@ -164,6 +178,8 @@ Visualization Manager:
       Yaw: 3.14159
     Saved: ~
 Window Geometry:
+  race:
+    collapsed: false
   @CAR@ camera:
     collapsed: false
   Height: @HEIGHT@

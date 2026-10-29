@@ -11,4 +11,13 @@
   <class name="fleet_rviz_tools/AutodrivePanel" type="fleet_rviz_tools::AutodrivePanel" base_class_type="rviz_common::Panel">
     <description>Per-car autodrive ON/OFF toggles and ALL AUTO / ALL OFF (sends RB / LB on /&lt;car&gt;/joy).</description>
   </class>
+  <class name="fleet_rviz_tools/StartLine" type="fleet_rviz_tools::StartLineTool" base_class_type="rviz_common::Tool">
+    <description>Click-drag the race start/finish line and direction (/race/start_line).</description>
+  </class>
+  <class name="fleet_rviz_tools/RacePanel" type="fleet_rviz_tools::RacePanel" base_class_type="rviz_common::Panel">
+    <description>N-lap race: lap count, START / RESET (/race/command) and standings (/race/state).</description>
+  </class>
+  <class name="fleet_rviz_tools/RaceHud" type="fleet_rviz_tools::RaceHud" base_class_type="rviz_common::Panel">
+    <description>Driver HUD for one car (config key Car): position, lap, lap time (/race/state).</description>
+  </class>
 </library>

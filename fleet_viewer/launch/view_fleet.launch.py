@@ -1,5 +1,5 @@
 """Fleet view: 2D track map + 3D point-cloud map + RViz with every car's pose, path, camera,
-per-car "Pose" tools and the Autodrive panel. Closing RViz shuts everything down.
+per-car "Pose" tools, the Autodrive panel and race control (lap_timer + Race panel + Start Line tool). Closing RViz shuts everything down.
 
   ros2 launch fleet_viewer view_fleet.launch.py                       # bundled map
   ros2 launch fleet_viewer view_fleet.launch.py map:=/path/to/track.yaml [pcd:=/path/to/track.pcd]
@@ -26,6 +26,8 @@ def nodes(context):
              parameters=[{'yaml_filename': map_yaml}]),
         Node(package='nav2_lifecycle_manager', executable='lifecycle_manager', name='map_lifecycle',
              parameters=[{'node_names': ['map_server'], 'autostart': True, 'bond_timeout': 0.0}]),
+        Node(package='fleet_viewer', executable='lap_timer.py', name='lap_timer',
+             parameters=[{'map': map_yaml}]),
     ]
     if os.path.isfile(os.path.expanduser(pcd)):
         out.append(Node(package='fleet_viewer', executable='pcd_publisher.py', name='pcd_publisher',
