@@ -57,6 +57,7 @@ class Grid:
         self.tree = cKDTree(self.centre)
         _, idx = self.tree.query(np.stack([self.cx.ravel(), self.cy.ravel()], 1))
         self.cell_tangent = self.tangent[idx].reshape(self.h, self.w, 2)  # track direction at each cell
+        self.cell_idx = idx.reshape(self.h, self.w)                         # nearest centreline point of each cell
 
     def cell(self, x, y):
         return int(math.floor((self.top - y) / self.res)), int(math.floor((x - self.ox) / self.res))
@@ -132,7 +133,16 @@ class Planner:
         n = len(g.centre)
         i0 = int(g.tree.query((x, y))[1])
         sgn = self.direction(i0, yaw)
-        goal = g.cell(*g.centre[(i0 + sgn * int(n * self.p['horizon'])) % n])
+        gi = (i0 + sgn * int(n * self.p['horizon'])) % n
+        # the goal is a gate across the track at centreline point gi, not the point itself: a point on
+        # the centreline dragged the end of the path out to the middle whenever it fell in a corner
+        gate = (np.abs((g.cell_idx - gi + n // 2) % n - n // 2) <= 2) & np.isfinite(cost)
+        if not gate.any():
+            return None
+        gate_l = gate.tolist()
+        goal = g.cell(*g.centre[gi])
+        rr, cc_ = np.nonzero(gate)
+        gate_r = float(np.max(np.hypot(rr - goal[0], cc_ - goal[1])))      # heuristic stays admissible
         tan = (sgn * g.cell_tangent).tolist()
         back = -self.p['back_tol']
 
@@ -146,7 +156,8 @@ class Planner:
         openq = [(0.0, 0.0, start)]
         while openq:
             _, d, cur = heapq.heappop(openq)
-            if cur == goal:
+            if gate_l[cur[0]][cur[1]]:
+                goal = cur
                 break
             if d > best.get(cur, math.inf):
                 continue
@@ -167,9 +178,9 @@ class Planner:
                 if nd < best.get((nr, nc), math.inf):
                     best[(nr, nc)] = nd
                     parent[(nr, nc)] = cur
-                    hh = math.hypot(nr - gr, nc - gc)
+                    hh = max(0.0, math.hypot(nr - gr, nc - gc) - gate_r)
                     heapq.heappush(openq, (nd + hh, nd, (nr, nc)))
-        if goal not in parent:
+        if goal not in parent or not gate_l[goal[0]][goal[1]]:
             return None
         cells = [goal]
         while cells[-1] != start:
@@ -490,8 +501,8 @@ def main():
             self.follow_gap = float(P('follow_gap', 0.5))      # stop this far before a blocking car [m]
             # speed planner: the panel cap is the top speed, corners and blocking cars slow the car down
             self.a_lat = float(P('a_lat', 3.6))              # max lateral acceleration in corners [m/s^2] (car 1, expo floor)
-            self.a_acc = float(P('a_acc', 3.0))              # max acceleration out of corners [m/s^2]
-            self.a_dec = float(P('a_dec', 4.0))              # max braking into corners / behind a car [m/s^2]
+            self.a_acc = float(P('a_acc', 4.0))              # max acceleration out of corners [m/s^2]
+            self.a_dec = float(P('a_dec', 5.0))              # max braking into corners / behind a car [m/s^2]
             self.grip = float(P('grip', 4.0))                # tyre friction circle [m/s^2] (car 1, expo floor); 0 = off
             self.preview = float(P('speed_preview', 0.25))   # s: command the speed this far ahead (actuation lag)
             self.controller = P('controller', 'rear')            # 'pp' pure pursuit | 'stanley' | 'rear' rear-wheel feedback | 'lqr'
