@@ -428,7 +428,7 @@ def main():
             super().__init__('ring_planner')
             P = lambda n, d: self.declare_parameter(n, d).value
             self.speed = float(P('speed', 2.0))                 # until the panel's cap arrives on /fleet/max_speed
-            self.max_steer = float(P('max_steer', 0.4))
+            self.max_steer = float(P('max_steer', 0.48))  # car 1 after steering calibration
             self.wheelbase = float(P('wheelbase', 0.33))
             self.lookahead_gain = float(P('lookahead_gain', 0.35))  # lookahead = gain*v + 0.3, clamped 0.6..2.5 m
             self.steer_delay = float(P('steer_delay', 0.2))      # s: pure pursuit steers from where the car will be then
