@@ -457,14 +457,14 @@ Visualization Manager:
     Max Value: 1
     Median window: 5
     Min Value: 0
-    Name: nuc1 camera
+    Name: nuc4 camera
     Normalize Range: true
     Topic:
       Depth: 1
       Durability Policy: Volatile
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /nuc1/image/compressed
+      Value: /nuc4/image/compressed
     Value: true
   - Class: rviz_default_plugins/Image
     Enabled: true
@@ -591,7 +591,7 @@ Window Geometry:
   Width: 2494
   X: 66
   Y: 32
-  nuc1 camera:
+  nuc4 camera:
     collapsed: false
   nuc5 camera:
     collapsed: false
