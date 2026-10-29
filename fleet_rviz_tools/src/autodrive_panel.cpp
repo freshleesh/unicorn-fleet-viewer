@@ -1,5 +1,5 @@
 // Fleet autodrive panel: per-car ON/OFF toggles + ALL ON / ALL OFF, and a per-car speed cap slider.
-// Speed cap (nuc4: 1..10 m/s; other cars: 1..8 m/s) -> /<car>/max_speed (latched Float32): the ring planner's speed and the
+// Speed cap (1..8 m/s, every car) -> /<car>/max_speed (latched Float32): the ring planner's speed and the
 // joystick full-stick speed in simple_mux.
 // Uses the simple_mux joystick protocol, so the racing stack is untouched:
 //   ON  = Joy with RB (button 5) pressed            -> mux hands over to the planner (autodrive)
@@ -43,7 +43,7 @@ public:
         send(car, on);
       });
       auto * slider = new QSlider(Qt::Horizontal);
-      slider->setRange(10, car == "nuc4" ? 100 : 80);                         // 0.1 m/s steps, 1.0 .. 8.0
+      slider->setRange(10, 80);                                                 // 0.1 m/s steps, 1.0 .. 8.0, same for every car
       slider->setValue(20);
       auto * value = new QLabel("2.0 m/s");
       value->setMinimumWidth(56);
