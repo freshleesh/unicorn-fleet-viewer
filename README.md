@@ -8,6 +8,7 @@ the cars on the same Wi-Fi and running their fleet relay (see [Topics](#topics-s
 
 - RViz fleet view: 2D track map, 3D point-cloud map, each car's body, pose, planned path,
   live scan and camera
+- Driver screens: chase view behind one car + its camera, side by side
 - Per-car **Pose** tools (car colour) to set each car's localization start pose
 - **Autodrive** panel: per-car AUTO / OFF, ALL AUTO / ALL OFF, per-car speed cap (1–8 m/s)
 - Game pad → car bridge
@@ -63,6 +64,19 @@ Closing RViz stops the map servers too.
   - Slider: speed cap per car, 1.0–8.0 m/s. It is the planner's speed **and** the pad's
     full-stick speed. Sent when RViz opens, so opening RViz sets every car to the slider values.
     `File → Save Config` keeps the slider positions.
+
+**Driver screens** (one per visitor car, on any PC on the fleet Wi-Fi)
+
+```bash
+ros2 launch fleet_viewer driver_view.launch.py car:=nuc1 x:=1920   # e.g. main PC, second monitor
+ros2 launch fleet_viewer driver_view.launch.py car:=nuc5           # e.g. another PC
+```
+
+Left half: chase view behind the car (track, walls, every car, its planner path); right half:
+the car's camera. `x`/`y` place the window (pick the monitor), `width`/`height` default to
+1920×1080. Each screen serves its own map copy and TF under `/driver_<car>/`, so the screens
+and the main view don't interfere wherever they run. The chase camera follows the frame
+`<car>` that `odom_tf.py` makes from `/<car>/odom`. Closing RViz stops the rest.
 
 **Game pads** (one per car)
 
@@ -156,5 +170,5 @@ Cars: `nuc1` (orange), `nuc4` (blue), `nuc5` (green). The names and colours live
 ## Packages
 
 - `fleet_rviz_tools` — RViz plugins: `PoseNuc1/4/5` tools, `AutodrivePanel`
-- `fleet_viewer` — launch files, RViz config, bundled map, `pcd_publisher.py`, env script, battery tools
+- `fleet_viewer` — launch files (main view, driver screens, pads), RViz configs, bundled map, `pcd_publisher.py`, `odom_tf.py`, env script, battery tools
 - `car/` — not a package: scripts the cars run (env, relay, ring planner, start/stop), mux patch
